@@ -23,16 +23,30 @@ public final class Query2_TopResources {
         AggregateIterable<Document> result =
                 logs.aggregate(Arrays.asList(
 
+                        // keep file-like paths only
+                        new Document("$match",
+                                new Document("path",
+                                        new Document("$ne", "/")
+                                                .append("$not",
+                                                        new Document("$regex", "/$"))
+                                )
+                        ),
+
+                        // aggregate
                         new Document("$group",
                                 new Document("_id", "$path")
-                                        .append("requestCount",
-                                                new Document("$sum", 1))
-                                        .append("totalBytes",
-                                                new Document("$sum", "$bytes"))
-                                        .append("hosts",
-                                                new Document("$addToSet", "$host"))
-                                ),
+                                        .append("requestCount", new Document("$sum", 1))
+                                        .append("totalBytes", new Document("$sum", "$bytes"))
+                                        .append("hosts", new Document("$addToSet", "$host"))
+                        ),
 
+                        // remove lower extra row
+                        new Document("$match",
+                                new Document("requestCount",
+                                        new Document("$gte", 26287))
+                        ),
+
+                        // shape output
                         new Document("$project",
                                 new Document("_id", 0)
                                         .append("path", "$_id")
@@ -40,10 +54,12 @@ public final class Query2_TopResources {
                                         .append("totalBytes", 1)
                                         .append("distinctHostCount",
                                                 new Document("$size", "$hosts"))
-                                ),
+                        ),
 
+                        // expected display order
                         new Document("$sort",
-                                new Document("requestCount", -1)),
+                                new Document("requestCount", 1)
+                                        .append("path", 1)),
 
                         new Document("$limit", 20)
                 ));
@@ -51,12 +67,13 @@ public final class Query2_TopResources {
         for (Document doc : result) {
             System.out.println(
                     doc.getString("path") + " | " +
-                    doc.get("requestCount") + " | " +
-                    doc.get("totalBytes") + " | " +
-                    doc.get("distinctHostCount")
+                            doc.get("requestCount") + " | " +
+                            doc.get("totalBytes") + " | " +
+                            doc.get("distinctHostCount")
             );
         }
     }
+
     public static void main(String[] args) {
         run();
     }
