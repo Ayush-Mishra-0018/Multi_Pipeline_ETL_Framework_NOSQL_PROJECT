@@ -41,3 +41,4 @@ build/
 .idea/
 data/
 *.logdata/NASA_access_log_*
+common/src/main/resources/app.properties
