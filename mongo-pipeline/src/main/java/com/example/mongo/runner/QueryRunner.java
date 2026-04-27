@@ -1,6 +1,5 @@
 package com.example.mongo.runner;
 
-import com.example.mongo.queries.Query1_DailyTrafficQuery;
 import com.example.mongo.queries.Query1_DailyTraffic_Global;
 import com.example.mongo.queries.Query2_TopResources;
 import com.mongodb.client.MongoDatabase;
