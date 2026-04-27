@@ -5,15 +5,14 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 
 public class Query1_DailyTraffic_Global {
 
-    public static void run(MongoDatabase database,
-                           String pipelineName) {
+    public static void run(MongoDatabase database) {
 
+        // Step 1: Get all batch collections
         List<String> batchCollections = new ArrayList<>();
 
         for (String name : database.listCollectionNames()) {
@@ -30,7 +29,10 @@ public class Query1_DailyTraffic_Global {
         List<Future<List<Document>>> futures =
                 new ArrayList<>();
 
-        // Step 1: Run per-batch aggregation
+        // GLOBAL aggregation map
+        Map<String, Document> globalMap = new HashMap<>();
+
+        // Step 2: Run aggregation per batch (parallel)
         for (String collectionName : batchCollections) {
 
             futures.add(executor.submit(() -> {
@@ -38,14 +40,10 @@ public class Query1_DailyTraffic_Global {
                 MongoCollection<Document> collection =
                         database.getCollection(collectionName);
 
-                // 🔥 extract batchId
-                int batchId = Integer.parseInt(
-                        collectionName.substring(collectionName.lastIndexOf("_") + 1)
-                );
-
                 AggregateIterable<Document> result =
                         collection.aggregate(Arrays.asList(
 
+                                // GROUP
                                 new Document("$group",
                                         new Document("_id",
                                                 new Document("log_date", "$date")
@@ -61,8 +59,6 @@ public class Query1_DailyTraffic_Global {
                 List<Document> docs = new ArrayList<>();
 
                 for (Document doc : result) {
-
-                    doc.append("batch_id", batchId); // attach batchId
                     docs.add(doc);
                 }
 
@@ -72,9 +68,7 @@ public class Query1_DailyTraffic_Global {
 
         executor.shutdown();
 
-        // Step 2: Global merge
-        Map<String, Document> finalMap = new HashMap<>();
-
+        // Step 3: Merge all batches → GLOBAL aggregation
         try {
 
             for (Future<List<Document>> future : futures) {
@@ -93,9 +87,9 @@ public class Query1_DailyTraffic_Global {
                     int count = doc.getInteger("request_count");
                     long bytes = doc.getLong("total_bytes");
 
-                    if (!finalMap.containsKey(key)) {
+                    if (!globalMap.containsKey(key)) {
 
-                        finalMap.put(key,
+                        globalMap.put(key,
                                 new Document("log_date", date)
                                         .append("status_code", status)
                                         .append("request_count", count)
@@ -104,7 +98,7 @@ public class Query1_DailyTraffic_Global {
 
                     } else {
 
-                        Document existing = finalMap.get(key);
+                        Document existing = globalMap.get(key);
 
                         existing.put("request_count",
                                 existing.getInteger("request_count") + count);
@@ -119,28 +113,34 @@ public class Query1_DailyTraffic_Global {
             e.printStackTrace();
         }
 
+        // Step 4: Sort results
         List<Document> output =
-                new ArrayList<>(finalMap.values());
+                new ArrayList<>(globalMap.values());
 
         output.sort(
                 Comparator.comparing((Document d) -> d.getString("log_date"))
                         .thenComparing(d -> d.getInteger("status_code"))
         );
 
-        String executedAt = Instant.now().toString();
+        // Step 5: Print formatted output
 
-        // 🔥 FINAL OUTPUT (global aggregation)
+        System.out.println("\n===== QUERY 1: GLOBAL DAILY TRAFFIC =====\n");
+
+        System.out.printf(
+                "%-12s | %-12s | %-15s | %-15s%n",
+                "log_date", "status_code", "request_count", "total_bytes"
+        );
+
+        System.out.println("---------------------------------------------------------------");
+
         for (Document doc : output) {
 
-            System.out.println(
-                    new Document("batch_id", "GLOBAL")
-                            .append("log_date", doc.getString("log_date"))
-                            .append("status_code", doc.getInteger("status_code"))
-                            .append("request_count", doc.getInteger("request_count"))
-                            .append("total_bytes", doc.getLong("total_bytes"))
-                            .append("pipeline_name", pipelineName)
-                            .append("executed_at", executedAt)
-                            .toJson()
+            System.out.printf(
+                    "%-12s | %-12d | %-15d | %-15d%n",
+                    doc.getString("log_date"),
+                    doc.getInteger("status_code"),
+                    doc.getInteger("request_count"),
+                    doc.getLong("total_bytes")
             );
         }
     }
