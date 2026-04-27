@@ -2,6 +2,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+common/src/main/resources/app.properties
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
