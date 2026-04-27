@@ -15,6 +15,7 @@ public final class MongoInsertService {
     private static final String BATCH_METADATA = "batch_metadata";
     private static final String PARSED_LOGS = "parsed_logs";
     private static final String FILTERED_LOGS = "filtered_logs";
+    private static final String PIPELINE_METADATA = "pipeline_run_metadata"; // ✅ NEW
 
     private static final MongoDatabase DATABASE =
             MongoConnection.getDatabase();
@@ -27,6 +28,9 @@ public final class MongoInsertService {
 
     private static final MongoCollection<Document> FILTERED_LOG_COLLECTION =
             DATABASE.getCollection(FILTERED_LOGS);
+
+    private static final MongoCollection<Document> PIPELINE_COLLECTION =
+            DATABASE.getCollection(PIPELINE_METADATA); // ✅ NEW
 
     private MongoInsertService() {
     }
@@ -42,11 +46,13 @@ public final class MongoInsertService {
 
         METADATA_COLLECTION.insertOne(doc);
     }
+
     public static void clearCollections() {
 
         DATABASE.getCollection(PARSED_LOGS).deleteMany(new Document());
         DATABASE.getCollection(FILTERED_LOGS).deleteMany(new Document());
         DATABASE.getCollection(BATCH_METADATA).deleteMany(new Document());
+        DATABASE.getCollection(PIPELINE_METADATA).deleteMany(new Document()); // ✅ NEW
 
         System.out.println("Mongo collections cleared.");
     }
@@ -82,6 +88,28 @@ public final class MongoInsertService {
         if (!docs.isEmpty()) {
             FILTERED_LOG_COLLECTION.insertMany(docs);
         }
+    }
+
+    // ✅ NEW METHOD (RUN SUMMARY)
+    public static void insertPipelineSummary(
+            long totalRecords,
+            long totalValid,
+            long totalMalformed,
+            int totalBatches,
+            double avgBatchSize,
+            long executionTimeMs
+    ) {
+
+        Document doc = new Document()
+                .append("totalRecords", totalRecords)
+                .append("totalValid", totalValid)
+                .append("totalMalformed", totalMalformed)
+                .append("totalBatches", totalBatches)
+                .append("avgBatchSize", avgBatchSize)
+                .append("executionTimeMs", executionTimeMs)
+                .append("timestamp", Instant.now().toString());
+
+        PIPELINE_COLLECTION.insertOne(doc);
     }
 
     private static Document toDocument(ParsedLog log) {

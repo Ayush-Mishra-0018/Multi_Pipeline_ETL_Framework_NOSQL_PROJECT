@@ -13,17 +13,15 @@ public class MongoPipelineMain {
 
     public static void main(String[] args) {
 
+        // 🚀 START TIME
+        long startTime = System.currentTimeMillis();
 
         boolean shouldClear = Boolean.parseBoolean(
-
                 ConfigReader.get("mongo.clear.before.run", "false")
-
         );
 
         if (shouldClear) {
-
             MongoInsertService.clearCollections();
-
         }
 
         String filePathsStr = ConfigReader.get("input.file.paths");
@@ -34,7 +32,12 @@ public class MongoPipelineMain {
         );
 
         int batchId = 1;
-        int totalInserted = 0;
+
+        // 🚀 GLOBAL METRICS
+        long totalRecordsProcessed = 0;
+        long totalMalformed = 0;
+        long totalValid = 0;
+        int totalBatches = 0;
 
         try {
 
@@ -61,11 +64,16 @@ public class MongoPipelineMain {
                                         batchId
                                 );
 
+                        // 🚀 INSERT INTO MONGO
                         MongoInsertService.insertBatchMetadata(result);
                         MongoInsertService.insertParsedLogs(result);
                         MongoInsertService.insertFilteredLogs(result);
 
-                        totalInserted += result.getValidRecords();
+                        // 🚀 UPDATE GLOBAL METRICS
+                        totalRecordsProcessed += result.getTotalRecords();
+                        totalMalformed += result.getMalformedRecords();
+                        totalValid += result.getValidRecords();
+                        totalBatches++;
 
                         System.out.println(
                                 "Batch " + batchId +
@@ -80,10 +88,37 @@ public class MongoPipelineMain {
                 }
             }
 
+            // 🚀 END TIME
+            long endTime = System.currentTimeMillis();
+            long totalTime = endTime - startTime;
+
+            double avgBatchSize = totalBatches == 0
+                    ? 0
+                    : (double) totalRecordsProcessed / totalBatches;
+
+            // 🚀 PRINT FINAL SUMMARY
+            System.out.println("\n======== PIPELINE SUMMARY ========");
+            System.out.println("Total Records Processed: " + totalRecordsProcessed);
+            System.out.println("Total Valid Records: " + totalValid);
+            System.out.println("Total Malformed Records: " + totalMalformed);
+            System.out.println("Total Batches: " + totalBatches);
+            System.out.println("Average Batch Size: " + avgBatchSize);
+            System.out.println("Total Execution Time (ms): " + totalTime);
+
+            // 🚀 STORE SUMMARY IN MONGO
+            MongoInsertService.insertPipelineSummary(
+                    totalRecordsProcessed,
+                    totalValid,
+                    totalMalformed,
+                    totalBatches,
+                    avgBatchSize,
+                    totalTime
+            );
+
             System.out.println(
-                    "Pipeline completed successfully. " +
+                    "\nPipeline completed successfully. " +
                             "Total valid records inserted = " +
-                            totalInserted
+                            totalValid
             );
 
         } catch (Exception e) {
