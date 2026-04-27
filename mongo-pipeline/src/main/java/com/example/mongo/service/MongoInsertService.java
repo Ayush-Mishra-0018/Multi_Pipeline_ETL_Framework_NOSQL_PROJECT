@@ -14,6 +14,7 @@ public final class MongoInsertService {
 
     private static final String BATCH_METADATA = "batch_metadata";
     private static final String PARSED_LOGS = "parsed_logs";
+    private static final String FILTERED_LOGS = "filtered_logs";
 
     private static final MongoDatabase DATABASE =
             MongoConnection.getDatabase();
@@ -23,6 +24,9 @@ public final class MongoInsertService {
 
     private static final MongoCollection<Document> LOG_COLLECTION =
             DATABASE.getCollection(PARSED_LOGS);
+
+    private static final MongoCollection<Document> FILTERED_LOG_COLLECTION =
+            DATABASE.getCollection(FILTERED_LOGS);
 
     private MongoInsertService() {
     }
@@ -38,6 +42,14 @@ public final class MongoInsertService {
 
         METADATA_COLLECTION.insertOne(doc);
     }
+    public static void clearCollections() {
+
+        DATABASE.getCollection(PARSED_LOGS).deleteMany(new Document());
+        DATABASE.getCollection(FILTERED_LOGS).deleteMany(new Document());
+        DATABASE.getCollection(BATCH_METADATA).deleteMany(new Document());
+
+        System.out.println("Mongo collections cleared.");
+    }
 
     public static void insertParsedLogs(BatchResult result) {
 
@@ -51,6 +63,24 @@ public final class MongoInsertService {
 
         if (!docs.isEmpty()) {
             LOG_COLLECTION.insertMany(docs);
+        }
+    }
+
+    public static void insertFilteredLogs(BatchResult result) {
+
+        List<ParsedLog> logs = result.getParsedLogs();
+
+        List<Document> docs = new ArrayList<>();
+
+        for (ParsedLog log : logs) {
+
+            if (!log.isMalformed()) {
+                docs.add(toDocument(log));
+            }
+        }
+
+        if (!docs.isEmpty()) {
+            FILTERED_LOG_COLLECTION.insertMany(docs);
         }
     }
 

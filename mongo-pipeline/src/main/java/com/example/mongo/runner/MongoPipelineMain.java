@@ -13,7 +13,22 @@ public class MongoPipelineMain {
 
     public static void main(String[] args) {
 
-        String filePath = ConfigReader.get("input.file.path");
+
+        boolean shouldClear = Boolean.parseBoolean(
+
+                ConfigReader.get("mongo.clear.before.run", "false")
+
+        );
+
+        if (shouldClear) {
+
+            MongoInsertService.clearCollections();
+
+        }
+
+        String filePathsStr = ConfigReader.get("input.file.paths");
+        String[] filePaths = filePathsStr.split(",");
+
         int batchSize = Integer.parseInt(
                 ConfigReader.get("batch.size", "10000")
         );
@@ -21,37 +36,48 @@ public class MongoPipelineMain {
         int batchId = 1;
         int totalInserted = 0;
 
-        try (BatchReader reader = new BatchReader(filePath)) {
+        try {
 
-            while (true) {
+            for (String filePath : filePaths) {
 
-                List<String> rawLines =
-                        reader.readNextBatch(batchSize);
+                filePath = filePath.trim();
 
-                if (rawLines.isEmpty()) {
-                    break;
-                }
+                System.out.println("Processing file: " + filePath);
 
-                BatchResult result =
-                        BatchProcessor.processBatch(
-                                rawLines,
-                                batchId
+                try (BatchReader reader = new BatchReader(filePath)) {
+
+                    while (true) {
+
+                        List<String> rawLines =
+                                reader.readNextBatch(batchSize);
+
+                        if (rawLines.isEmpty()) {
+                            break;
+                        }
+
+                        BatchResult result =
+                                BatchProcessor.processBatch(
+                                        rawLines,
+                                        batchId
+                                );
+
+                        MongoInsertService.insertBatchMetadata(result);
+                        MongoInsertService.insertParsedLogs(result);
+                        MongoInsertService.insertFilteredLogs(result);
+
+                        totalInserted += result.getValidRecords();
+
+                        System.out.println(
+                                "Batch " + batchId +
+                                        " inserted | Total Records = " +
+                                        result.getTotalRecords() +
+                                        " | Malformed = " +
+                                        result.getMalformedRecords()
                         );
 
-                MongoInsertService.insertBatchMetadata(result);
-                MongoInsertService.insertParsedLogs(result);
-
-                totalInserted += result.getValidRecords();
-
-                System.out.println(
-                        "Batch " + batchId +
-                                " inserted | Total Records = " +
-                                result.getTotalRecords() +
-                                " | Malformed = " +
-                                result.getMalformedRecords()
-                );
-
-                batchId++;
+                        batchId++;
+                    }
+                }
             }
 
             System.out.println(
