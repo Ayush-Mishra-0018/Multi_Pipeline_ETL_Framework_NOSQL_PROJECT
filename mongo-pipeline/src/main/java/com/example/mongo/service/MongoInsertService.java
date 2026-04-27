@@ -49,22 +49,9 @@ public final class MongoInsertService {
 
     public static void clearCollections() {
 
-        // ✅ Clear fixed collections
-        DATABASE.getCollection(PARSED_LOGS).deleteMany(new Document());
-        DATABASE.getCollection(FILTERED_LOGS).deleteMany(new Document());
-        DATABASE.getCollection(BATCH_METADATA).deleteMany(new Document());
-        DATABASE.getCollection(PIPELINE_METADATA).deleteMany(new Document());
+        DATABASE.drop();
 
-        // ✅ NEW: delete all batch-specific collections
-        for (String collectionName : DATABASE.listCollectionNames()) {
-
-            if (collectionName.startsWith("filtered_logs_batch_")) {
-                DATABASE.getCollection(collectionName).drop();
-                System.out.println("Dropped collection: " + collectionName);
-            }
-        }
-
-        System.out.println("Mongo collections cleared.");
+        System.out.println("Database dropped completely.");
     }
 
     public static void insertParsedLogs(BatchResult result) {
