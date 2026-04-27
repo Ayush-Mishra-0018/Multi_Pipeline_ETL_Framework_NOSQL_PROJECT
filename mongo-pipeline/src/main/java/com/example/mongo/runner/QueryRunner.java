@@ -37,8 +37,8 @@ public class QueryRunner {
             // Get database from existing connection class
             MongoDatabase database = MongoConnection.getDatabase();
 
-            // Run Query 3
-            Query2_TopResources.run();
+            // Run Query 2
+            Query2_TopResources.run(database);
 
             System.out.println("Query 2 executed successfully.");
 
