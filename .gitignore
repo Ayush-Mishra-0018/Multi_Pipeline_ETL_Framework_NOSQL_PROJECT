@@ -38,4 +38,4 @@ build/
 .DS_Store
 .idea/
 data/
-*.log
+*.logdata/NASA_access_log_*
