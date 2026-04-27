@@ -1,5 +1,6 @@
 package com.example.mongo.queries;
 
+import com.example.service.PostgresInsertService;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -182,7 +183,7 @@ public class Query3_HourlyErrorAnalysis {
             e.printStackTrace();
         }
 
-        // Step 4: Sort final result
+        // Sort final result
         List<Document> output =
                 new ArrayList<>(finalMap.values());
 
@@ -194,15 +195,8 @@ public class Query3_HourlyErrorAnalysis {
         );
 
 
-        System.out.printf(
-                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s | %-36s | %-10s | %-25s%n",
-                "log_date", "log_hour", "error_request_count",
-                "total_request_count", "error_rate",
-                "distinct_error_hosts", "batches",
-                "run_id", "pipeline", "executed_at"
-        );
-
-        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+        List<Map<String, Object>> rows =
+                new ArrayList<>();
 
         for (Document doc : output) {
 
@@ -235,18 +229,76 @@ public class Query3_HourlyErrorAnalysis {
                                     .toArray(String[]::new)
                     );
 
+            Map<String, Object> row =
+                    new LinkedHashMap<>();
+
+            row.put("log_date",
+                    doc.getString("log_date"));
+
+            row.put("log_hour",
+                    doc.getInteger("log_hour"));
+
+            row.put("error_request_count",
+                    errors);
+
+            row.put("total_request_count",
+                    total);
+
+            row.put("error_rate",
+                    errorRate);
+
+            row.put("distinct_error_hosts",
+                    ((Set<?>) doc.get("hosts")).size());
+
+            row.put("batch_id",
+                    batchString);
+
+            row.put("run_id",
+                    runId);
+
+            row.put("pipeline_name",
+                    pipelineName);
+
+            row.put("executed_at",
+                    executedAt);
+
+            rows.add(row);
+        }
+
+        // INSERT INTO POSTGRES TABLE query_3
+        PostgresInsertService.flushAndInsert(
+                "query_3",
+                rows
+        );
+
+        // =========================================
+        // PRINT OUTPUT
+        // =========================================
+
+        System.out.printf(
+                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s | %-36s | %-10s | %-25s%n",
+                "log_date", "log_hour", "error_request_count",
+                "total_request_count", "error_rate",
+                "distinct_error_hosts", "batches",
+                "run_id", "pipeline", "executed_at"
+        );
+
+        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+
+        for (Map<String, Object> row : rows) {
+
             System.out.printf(
                     "%-12s | %-8d | %-20d | %-20d | %-12.2f | %-20d | %-10s | %-36s | %-10s | %-25s%n",
-                    doc.getString("log_date"),
-                    doc.getInteger("log_hour"),
-                    errors,
-                    total,
-                    errorRate,
-                    ((Set<?>) doc.get("hosts")).size(),
-                    batchString,
-                    runId,
-                    pipelineName,
-                    executedAt
+                    row.get("log_date"),
+                    row.get("log_hour"),
+                    row.get("error_request_count"),
+                    row.get("total_request_count"),
+                    row.get("error_rate"),
+                    row.get("distinct_error_hosts"),
+                    row.get("batch_id"),
+                    row.get("run_id"),
+                    row.get("pipeline_name"),
+                    row.get("executed_at")
             );
         }
     }
