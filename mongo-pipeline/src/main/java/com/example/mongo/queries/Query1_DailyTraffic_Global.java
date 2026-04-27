@@ -12,7 +12,6 @@ import java.util.concurrent.*;
 public class Query1_DailyTraffic_Global {
 
     public static void run(MongoDatabase database,
-                           String runId,
                            String pipelineName) {
 
         // Step 1: Get all batch collections
@@ -67,7 +66,7 @@ public class Query1_DailyTraffic_Global {
 
         executor.shutdown();
 
-        // Step 3: Merge all batch outputs (GLOBAL aggregation)
+        // Step 3: Merge results (GLOBAL aggregation)
         Map<String, Document> finalMap = new HashMap<>();
 
         try {
@@ -123,15 +122,14 @@ public class Query1_DailyTraffic_Global {
                         .thenComparing(d -> d.getInteger("status_code"))
         );
 
-        // Step 5: Add metadata + print (matches your screenshot)
+        // Step 5: Print final result (matches your screenshot structure except run_id)
         int batchId = 1;
         String executedAt = Instant.now().toString();
 
         for (Document doc : output) {
 
             System.out.println(
-                    new Document("run_id", runId)
-                            .append("batch_id", batchId)
+                    new Document("batch_id", batchId)
                             .append("log_date", doc.getString("log_date"))
                             .append("status_code", doc.getInteger("status_code"))
                             .append("request_count", doc.getInteger("request_count"))
