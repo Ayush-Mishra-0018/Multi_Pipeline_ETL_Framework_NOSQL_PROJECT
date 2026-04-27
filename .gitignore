@@ -38,5 +38,5 @@ build/
 ### Mac OS ###
 .DS_Store
 .idea/
-
-*.log
+data/
+*.logdata/NASA_access_log_*
