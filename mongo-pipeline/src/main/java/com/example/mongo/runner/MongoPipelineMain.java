@@ -122,7 +122,7 @@ public class MongoPipelineMain {
                             totalValid
             );
 
-            QueryRunner.runQuery3();
+            QueryRunner.runQuery1();
 //            QueryRunner.runQueries();
         } catch (Exception e) {
             e.printStackTrace();

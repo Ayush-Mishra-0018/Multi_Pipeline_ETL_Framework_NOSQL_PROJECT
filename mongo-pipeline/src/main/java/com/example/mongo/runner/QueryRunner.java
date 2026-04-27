@@ -1,6 +1,7 @@
 package com.example.mongo.runner;
 
 import com.example.mongo.queries.Query1_DailyTrafficQuery;
+import com.example.mongo.queries.Query1_DailyTraffic_Global;
 import com.example.mongo.queries.Query2_TopResources;
 import com.mongodb.client.MongoDatabase;
 import com.example.mongo.service.MongoConnection;
@@ -20,7 +21,7 @@ public class QueryRunner {
             MongoDatabase database = MongoConnection.getDatabase();
 
             // Run Query 3
-            Query1_DailyTrafficQuery.run(database);
+            Query1_DailyTraffic_Global.run(database,"mongodb");
 
             System.out.println("Query 1 executed successfully.");
 
