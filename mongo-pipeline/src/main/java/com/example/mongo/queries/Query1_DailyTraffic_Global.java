@@ -14,7 +14,6 @@ public class Query1_DailyTraffic_Global {
     public static void run(MongoDatabase database,
                            String pipelineName) {
 
-        // Step 1: Get all batch collections
         List<String> batchCollections = new ArrayList<>();
 
         for (String name : database.listCollectionNames()) {
@@ -31,13 +30,18 @@ public class Query1_DailyTraffic_Global {
         List<Future<List<Document>>> futures =
                 new ArrayList<>();
 
-        // Step 2: Run aggregation per batch (parallel)
+        // Step 1: Run per-batch aggregation
         for (String collectionName : batchCollections) {
 
             futures.add(executor.submit(() -> {
 
                 MongoCollection<Document> collection =
                         database.getCollection(collectionName);
+
+                // 🔥 extract batchId
+                int batchId = Integer.parseInt(
+                        collectionName.substring(collectionName.lastIndexOf("_") + 1)
+                );
 
                 AggregateIterable<Document> result =
                         collection.aggregate(Arrays.asList(
@@ -57,6 +61,8 @@ public class Query1_DailyTraffic_Global {
                 List<Document> docs = new ArrayList<>();
 
                 for (Document doc : result) {
+
+                    doc.append("batch_id", batchId); // attach batchId
                     docs.add(doc);
                 }
 
@@ -66,7 +72,7 @@ public class Query1_DailyTraffic_Global {
 
         executor.shutdown();
 
-        // Step 3: Merge results (GLOBAL aggregation)
+        // Step 2: Global merge
         Map<String, Document> finalMap = new HashMap<>();
 
         try {
@@ -113,7 +119,6 @@ public class Query1_DailyTraffic_Global {
             e.printStackTrace();
         }
 
-        // Step 4: Convert to list + sort
         List<Document> output =
                 new ArrayList<>(finalMap.values());
 
@@ -122,14 +127,13 @@ public class Query1_DailyTraffic_Global {
                         .thenComparing(d -> d.getInteger("status_code"))
         );
 
-        // Step 5: Print final result (matches your screenshot structure except run_id)
-        int batchId = 1;
         String executedAt = Instant.now().toString();
 
+        // 🔥 FINAL OUTPUT (global aggregation)
         for (Document doc : output) {
 
             System.out.println(
-                    new Document("batch_id", batchId)
+                    new Document("batch_id", "GLOBAL")
                             .append("log_date", doc.getString("log_date"))
                             .append("status_code", doc.getInteger("status_code"))
                             .append("request_count", doc.getInteger("request_count"))
