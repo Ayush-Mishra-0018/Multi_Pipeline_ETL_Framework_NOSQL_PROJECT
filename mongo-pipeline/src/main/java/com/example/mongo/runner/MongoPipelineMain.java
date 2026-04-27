@@ -2,6 +2,7 @@ package com.example.mongo.runner;
 
 import com.example.config.ConfigReader;
 import com.example.model.BatchResult;
+import com.example.mongo.queries.Query3_HourlyErrorAnalysis;
 import com.example.mongo.service.MongoConnection;
 import com.example.mongo.service.MongoInsertService;
 import com.example.util.BatchProcessor;
@@ -121,6 +122,8 @@ public class MongoPipelineMain {
                             totalValid
             );
 
+
+            QueryRunner.runQueries();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
