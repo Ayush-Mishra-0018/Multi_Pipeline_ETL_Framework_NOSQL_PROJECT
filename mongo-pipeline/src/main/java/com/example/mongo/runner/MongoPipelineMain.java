@@ -17,7 +17,7 @@ public class MongoPipelineMain {
         long startTime = System.currentTimeMillis();
 
         boolean shouldClear = Boolean.parseBoolean(
-                ConfigReader.get("mongo.clear.before.run", "false")
+                ConfigReader.get("mongo.clear.before.run", "true")
         );
 
         if (shouldClear) {

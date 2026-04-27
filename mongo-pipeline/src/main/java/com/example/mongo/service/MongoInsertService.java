@@ -49,10 +49,20 @@ public final class MongoInsertService {
 
     public static void clearCollections() {
 
+        // ✅ Clear fixed collections
         DATABASE.getCollection(PARSED_LOGS).deleteMany(new Document());
         DATABASE.getCollection(FILTERED_LOGS).deleteMany(new Document());
         DATABASE.getCollection(BATCH_METADATA).deleteMany(new Document());
-        DATABASE.getCollection(PIPELINE_METADATA).deleteMany(new Document()); // ✅ NEW
+        DATABASE.getCollection(PIPELINE_METADATA).deleteMany(new Document());
+
+        // ✅ NEW: delete all batch-specific collections
+        for (String collectionName : DATABASE.listCollectionNames()) {
+
+            if (collectionName.startsWith("filtered_logs_batch_")) {
+                DATABASE.getCollection(collectionName).drop();
+                System.out.println("Dropped collection: " + collectionName);
+            }
+        }
 
         System.out.println("Mongo collections cleared.");
     }
@@ -79,14 +89,26 @@ public final class MongoInsertService {
         List<Document> docs = new ArrayList<>();
 
         for (ParsedLog log : logs) {
-
             if (!log.isMalformed()) {
                 docs.add(toDocument(log));
             }
         }
 
         if (!docs.isEmpty()) {
+
+            // ✅ Existing global collection (UNCHANGED)
             FILTERED_LOG_COLLECTION.insertMany(docs);
+
+            // ✅ NEW: batch-specific collection
+            int batchId = result.getBatchId();
+            String batchCollectionName = "filtered_logs_batch_" + batchId;
+
+            MongoCollection<Document> batchCollection =
+                    DATABASE.getCollection(batchCollectionName);
+
+            batchCollection.insertMany(docs);
+
+            System.out.println("Inserted batch into: " + batchCollectionName);
         }
     }
 
