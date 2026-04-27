@@ -21,7 +21,7 @@ import java.util.List;
  *
  * Results are sorted by log_date ASC, then status_code ASC.
  */
-public final class DailyTrafficQuery {
+public final class Query1_DailyTrafficQuery {
 
     // ── collection names ────────────────────────────────────────────────────
     private static final String FILTERED_LOGS   = "filtered_logs";
@@ -38,7 +38,7 @@ public final class DailyTrafficQuery {
     private static final String R_REQUEST_COUNT = "request_count";
     private static final String R_TOTAL_BYTES   = "total_bytes";
 
-    private DailyTrafficQuery() {}
+    private Query1_DailyTrafficQuery() {}
 
     // ────────────────────────────────────────────────────────────────────────
     // Public API

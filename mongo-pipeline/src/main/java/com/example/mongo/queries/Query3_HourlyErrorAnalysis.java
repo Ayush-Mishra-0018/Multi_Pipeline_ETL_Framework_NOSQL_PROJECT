@@ -11,6 +11,7 @@ public class Query3_HourlyErrorAnalysis {
 
     public static void run(MongoDatabase database) {
 
+
         MongoCollection<Document> collection =
                 database.getCollection("filtered_logs");
 
