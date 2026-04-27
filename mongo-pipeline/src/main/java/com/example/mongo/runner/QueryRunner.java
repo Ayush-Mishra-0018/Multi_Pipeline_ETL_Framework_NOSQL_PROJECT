@@ -21,7 +21,7 @@ public class QueryRunner {
             MongoDatabase database = MongoConnection.getDatabase();
 
             // Run Query 3
-            Query1_DailyTraffic_Global.run(database,"mongodb");
+            Query1_DailyTraffic_Global.run(database);
 
             System.out.println("Query 1 executed successfully.");
 

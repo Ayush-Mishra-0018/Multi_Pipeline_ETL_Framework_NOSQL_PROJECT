@@ -5,6 +5,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -12,7 +13,12 @@ public class Query3_HourlyErrorAnalysis {
 
     public static void run(MongoDatabase database) {
 
-        // Step 1: Get all batch collections
+        // metadata
+        String pipelineName = "mongodb";
+        String runId = UUID.randomUUID().toString();
+        String executedAt = Instant.now().toString();
+
+        // Get all batch collections
         List<String> batchCollections = new ArrayList<>();
 
         for (String name : database.listCollectionNames()) {
@@ -29,7 +35,15 @@ public class Query3_HourlyErrorAnalysis {
         List<Future<List<Document>>> futures =
                 new ArrayList<>();
 
-        // Step 2: Run same query on each batch collection in parallel
+        // GLOBAL aggregation map
+        Map<String, Document> finalMap =
+                new HashMap<>();
+
+        // Track contributing batches
+        Map<String, Set<Integer>> batchTracker =
+                new HashMap<>();
+
+        // Run same query on each batch collection in parallel
         for (String collectionName : batchCollections) {
 
             futures.add(executor.submit(() -> {
@@ -37,14 +51,19 @@ public class Query3_HourlyErrorAnalysis {
                 MongoCollection<Document> collection =
                         database.getCollection(collectionName);
 
+                int batchId = Integer.parseInt(
+                        collectionName.substring(
+                                collectionName.lastIndexOf("_") + 1
+                        )
+                );
+
                 AggregateIterable<Document> result =
                         collection.aggregate(Arrays.asList(
 
-                                // group by date + hour
                                 new Document("$group",
                                         new Document("_id",
-                                                new Document("date", "$date")
-                                                        .append("hour", "$hour")
+                                                new Document("log_date", "$date")
+                                                        .append("log_hour", "$hour")
                                         )
 
                                                 .append("error_request_count",
@@ -82,6 +101,7 @@ public class Query3_HourlyErrorAnalysis {
                 List<Document> docs = new ArrayList<>();
 
                 for (Document doc : result) {
+                    doc.append("batch_id", batchId);
                     docs.add(doc);
                 }
 
@@ -91,10 +111,7 @@ public class Query3_HourlyErrorAnalysis {
 
         executor.shutdown();
 
-        // Step 3: Merge outputs of all batches
-        Map<String, Document> finalMap =
-                new HashMap<>();
-
+        // Merge outputs of all batches
         try {
 
             for (Future<List<Document>> future : futures) {
@@ -108,10 +125,13 @@ public class Query3_HourlyErrorAnalysis {
                             (Document) doc.get("_id");
 
                     String date =
-                            id.getString("date");
+                            id.getString("log_date");
 
                     int hour =
-                            id.getInteger("hour");
+                            id.getInteger("log_hour");
+
+                    int batchId =
+                            doc.getInteger("batch_id");
 
                     String key =
                             date + "_" + hour;
@@ -128,30 +148,33 @@ public class Query3_HourlyErrorAnalysis {
                     if (!finalMap.containsKey(key)) {
 
                         finalMap.put(key,
-                                new Document("logdate", date)
-                                        .append("loghour", hour)
-                                        .append("errors", errors)
-                                        .append("total", total)
-                                        .append("hosts",
-                                                new HashSet<>(hosts))
+                                new Document("log_date", date)
+                                        .append("log_hour", hour)
+                                        .append("error_request_count", errors)
+                                        .append("total_request_count", total)
+                                        .append("hosts", new HashSet<>(hosts))
                         );
+
+                        batchTracker.put(key, new HashSet<>());
 
                     } else {
 
                         Document existing =
                                 finalMap.get(key);
 
-                        existing.put("errors",
-                                existing.getInteger("errors") + errors);
+                        existing.put("error_request_count",
+                                existing.getInteger("error_request_count") + errors);
 
-                        existing.put("total",
-                                existing.getInteger("total") + total);
+                        existing.put("total_request_count",
+                                existing.getInteger("total_request_count") + total);
 
                         Set<String> hostSet =
                                 (Set<String>) existing.get("hosts");
 
                         hostSet.addAll(hosts);
                     }
+
+                    batchTracker.get(key).add(batchId);
                 }
             }
 
@@ -159,45 +182,71 @@ public class Query3_HourlyErrorAnalysis {
             e.printStackTrace();
         }
 
-        // Step 4: Sort + print final result
+        // Step 4: Sort final result
         List<Document> output =
                 new ArrayList<>(finalMap.values());
 
         output.sort(
                 Comparator.comparing(
-                                (Document d) -> d.getString("logdate"))
+                                (Document d) -> d.getString("log_date"))
                         .thenComparing(
-                                d -> d.getInteger("loghour"))
+                                d -> d.getInteger("log_hour"))
         );
+
+
+        System.out.printf(
+                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s | %-36s | %-10s | %-25s%n",
+                "log_date", "log_hour", "error_request_count",
+                "total_request_count", "error_rate",
+                "distinct_error_hosts", "batches",
+                "run_id", "pipeline", "executed_at"
+        );
+
+        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
         for (Document doc : output) {
 
             int errors =
-                    doc.getInteger("errors");
+                    doc.getInteger("error_request_count");
 
             int total =
-                    doc.getInteger("total");
+                    doc.getInteger("total_request_count");
 
             double errorRate =
                     total == 0 ? 0 :
-                            Math.round(
-                                    (errors * 10000.0 / total)
-                            ) / 100.0;
+                            Math.round((errors * 10000.0 / total)) / 100.0;
 
-            System.out.println(
-                    new Document("logdate",
-                            doc.getString("logdate"))
-                            .append("loghour",
-                                    doc.getInteger("loghour"))
-                            .append("errorrequestcount",
-                                    errors)
-                            .append("totalrequestcount",
-                                    total)
-                            .append("errorrate",
-                                    errorRate)
-                            .append("distincterrorhosts",
-                                    ((Set<?>) doc.get("hosts")).size())
-                            .toJson()
+            String key =
+                    doc.getString("log_date") + "_" +
+                            doc.getInteger("log_hour");
+
+            Set<Integer> batches =
+                    batchTracker.get(key);
+
+            List<Integer> sortedBatches =
+                    new ArrayList<>(batches);
+
+            Collections.sort(sortedBatches);
+
+            String batchString =
+                    String.join("+",
+                            sortedBatches.stream()
+                                    .map(String::valueOf)
+                                    .toArray(String[]::new)
+                    );
+
+            System.out.printf(
+                    "%-12s | %-8d | %-20d | %-20d | %-12.2f | %-20d | %-10s | %-36s | %-10s | %-25s%n",
+                    doc.getString("log_date"),
+                    doc.getInteger("log_hour"),
+                    errors,
+                    total,
+                    errorRate,
+                    ((Set<?>) doc.get("hosts")).size(),
+                    batchString,
+                    runId,
+                    pipelineName,
+                    executedAt
             );
         }
     }

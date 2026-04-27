@@ -18,6 +18,7 @@
     <module>mongo-pipeline</module>
     <module>postgres-loader</module>
     <module>reporting</module>
+      <module>postgres-loader/Postgres_Writer</module>
   </modules>
 
   <!-- Global Properties -->
