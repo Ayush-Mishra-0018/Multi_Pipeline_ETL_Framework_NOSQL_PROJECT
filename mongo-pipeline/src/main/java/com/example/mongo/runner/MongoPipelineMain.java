@@ -3,6 +3,7 @@ package com.example.mongo.runner;
 import com.example.config.ConfigReader;
 import com.example.model.BatchResult;
 import com.example.mongo.queries.Query3_HourlyErrorAnalysis;
+import com.example.mongo.reporting.RunModule;
 import com.example.mongo.service.MongoConnection;
 import com.example.mongo.service.MongoInsertService;
 import com.example.util.BatchProcessor;
@@ -123,7 +124,7 @@ public class MongoPipelineMain {
             );
 
 //            QueryRunner.runQuery3();
-            QueryRunner.runQueries();
+            RunModule.reporting(startTime);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

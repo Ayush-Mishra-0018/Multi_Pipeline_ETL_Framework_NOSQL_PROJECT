@@ -1,22 +1,27 @@
-package com.example.service;
+package com.example.postgres.service;
 
-import com.example.config.AppProperties;
+import com.example.config.ConfigReader;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 
-public class PostgresInsertService {
+public final class PostgresInsertService {
 
     private static final String URL =
-            AppProperties.get("postgres.url");
+            ConfigReader.get("postgres.url");
 
     private static final String USER =
-            AppProperties.get("postgres.username");
+            ConfigReader.get("postgres.username");
 
     private static final String PASSWORD =
-            AppProperties.get("postgres.password");
+            ConfigReader.get("postgres.password");
 
+    private PostgresInsertService() {
+    }
 
     public static void flushAndInsert(
             String tableName,
@@ -25,27 +30,38 @@ public class PostgresInsertService {
 
         try (
                 Connection conn =
-                        DriverManager.getConnection(URL, USER, PASSWORD)
+                        DriverManager.getConnection(
+                                URL,
+                                USER,
+                                PASSWORD
+                        )
         ) {
 
             conn.setAutoCommit(false);
 
-            // flush previous data
-            Statement st = conn.createStatement();
-            st.executeUpdate("TRUNCATE TABLE " + tableName);
+            Statement st =
+                    conn.createStatement();
+
+            st.executeUpdate(
+                    "TRUNCATE TABLE " + tableName
+            );
 
             if (rows == null || rows.isEmpty()) {
                 conn.commit();
-                System.out.println("Old data flushed. No new rows.");
                 return;
             }
 
-            Map<String, Object> firstRow = rows.get(0);
+            Map<String, Object> firstRow =
+                    rows.get(0);
 
-            StringBuilder cols = new StringBuilder();
-            StringBuilder vals = new StringBuilder();
+            StringBuilder cols =
+                    new StringBuilder();
+
+            StringBuilder vals =
+                    new StringBuilder();
 
             int i = 0;
+
             for (String col : firstRow.keySet()) {
 
                 cols.append(col);
@@ -78,10 +94,11 @@ public class PostgresInsertService {
             }
 
             ps.executeBatch();
+
             conn.commit();
 
             System.out.println(
-                    "Flushed + Inserted " +
+                    "Inserted " +
                             rows.size() +
                             " rows into " +
                             tableName

@@ -1,7 +1,7 @@
 package com.example.mongo.queries;
 
 import com.example.mongo.service.MongoConnection;
-import com.example.service.PostgresInsertService;
+import com.example.postgres.service.PostgresInsertService;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -18,7 +18,7 @@ public class Query2_TopResources {
         // metadata
         String pipelineName = "mongodb";
         String runId = UUID.randomUUID().toString();
-        String executedAt = Instant.now().toString();
+        java.sql.Timestamp executedAt = java.sql.Timestamp.from(Instant.now());
 
         // Step 1: collect all batch collections
         List<String> batchCollections = new ArrayList<>();

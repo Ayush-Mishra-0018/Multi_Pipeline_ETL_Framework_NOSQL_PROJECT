@@ -1,6 +1,6 @@
 package com.example.mongo.queries;
 
-import com.example.service.PostgresInsertService;
+import com.example.postgres.service.PostgresInsertService;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
