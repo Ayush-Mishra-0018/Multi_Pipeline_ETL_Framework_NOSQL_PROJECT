@@ -1,17 +1,24 @@
 package com.example.mongo.queries;
 
 import com.example.mongo.service.MongoConnection;
+import com.example.service.PostgresInsertService;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 
 public class Query2_TopResources {
 
     public static void run(MongoDatabase database) {
+
+        // metadata
+        String pipelineName = "mongodb";
+        String runId = UUID.randomUUID().toString();
+        String executedAt = Instant.now().toString();
 
         // Step 1: collect all batch collections
         List<String> batchCollections = new ArrayList<>();
@@ -27,7 +34,6 @@ public class Query2_TopResources {
             batchCollections.add("filtered_logs");
         }
 
-        // sort batch names for deterministic execution
         batchCollections.sort(Comparator.naturalOrder());
 
         int threads = Math.min(
@@ -41,6 +47,14 @@ public class Query2_TopResources {
         List<Future<List<Document>>> futures =
                 new ArrayList<>();
 
+        // final merged map
+        Map<String, Document> finalMap =
+                new HashMap<>();
+
+        // track contributing batches
+        Map<String, Set<Integer>> batchTracker =
+                new HashMap<>();
+
         // Step 2: run local aggregation in parallel
         for (String collectionName : batchCollections) {
 
@@ -49,16 +63,24 @@ public class Query2_TopResources {
                 MongoCollection<Document> collection =
                         database.getCollection(collectionName);
 
+                int batchId = 0;
+
+                if (collectionName.startsWith("filtered_logs_batch_")) {
+                    batchId = Integer.parseInt(
+                            collectionName.substring(
+                                    collectionName.lastIndexOf("_") + 1
+                            )
+                    );
+                }
+
                 AggregateIterable<Document> result =
                         collection.aggregate(Arrays.asList(
 
-                                // exclude only root path
                                 new Document("$match",
                                         new Document("path",
                                                 new Document("$ne", "/"))
                                 ),
 
-                                // local grouping
                                 new Document("$group",
                                         new Document("_id", "$path")
                                                 .append("requestCount",
@@ -73,6 +95,7 @@ public class Query2_TopResources {
                 List<Document> docs = new ArrayList<>();
 
                 for (Document doc : result) {
+                    doc.append("batch_id", batchId);
                     docs.add(doc);
                 }
 
@@ -89,9 +112,6 @@ public class Query2_TopResources {
         }
 
         // Step 3: merge partial outputs
-        Map<String, Document> finalMap =
-                new HashMap<>();
-
         try {
 
             for (Future<List<Document>> future : futures) {
@@ -113,27 +133,31 @@ public class Query2_TopResources {
                     List<String> hosts =
                             (List<String>) doc.get("hosts");
 
+                    int batchId =
+                            doc.getInteger("batch_id");
+
                     if (!finalMap.containsKey(path)) {
 
                         finalMap.put(path,
-                                new Document("path", path)
-                                        .append("requestCount", requestCount)
-                                        .append("totalBytes", totalBytes)
-                                        .append("hosts",
-                                                new HashSet<>(hosts))
+                                new Document("resource_path", path)
+                                        .append("request_count", requestCount)
+                                        .append("total_bytes", totalBytes)
+                                        .append("hosts", new HashSet<>(hosts))
                         );
+
+                        batchTracker.put(path, new HashSet<>());
 
                     } else {
 
                         Document existing =
                                 finalMap.get(path);
 
-                        existing.put("requestCount",
-                                existing.getInteger("requestCount")
+                        existing.put("request_count",
+                                existing.getInteger("request_count")
                                         + requestCount);
 
-                        existing.put("totalBytes",
-                                ((Number) existing.get("totalBytes")).longValue()
+                        existing.put("total_bytes",
+                                ((Number) existing.get("total_bytes")).longValue()
                                         + totalBytes);
 
                         Set<String> hostSet =
@@ -141,6 +165,8 @@ public class Query2_TopResources {
 
                         hostSet.addAll(hosts);
                     }
+
+                    batchTracker.get(path).add(batchId);
                 }
             }
 
@@ -148,39 +174,98 @@ public class Query2_TopResources {
             e.printStackTrace();
         }
 
-        // Step 4: global top 20
+        // Step 4: top 20 globally
         List<Document> output =
                 new ArrayList<>(finalMap.values());
 
-        // select top 20 by descending count
         output.sort(
                 Comparator.comparing(
-                                (Document d) -> d.getInteger("requestCount"))
+                                (Document d) -> d.getInteger("request_count"))
                         .reversed()
-                        .thenComparing(d -> d.getString("path"))
+                        .thenComparing(d -> d.getString("resource_path"))
         );
 
         if (output.size() > 20) {
             output = new ArrayList<>(output.subList(0, 20));
         }
 
-        // display ascending like reference output
+        // display ascending like expected sheet
         output.sort(
                 Comparator.comparing(
-                                (Document d) -> d.getInteger("requestCount"))
-                        .thenComparing(d -> d.getString("path"))
+                                (Document d) -> d.getInteger("request_count"))
+                        .thenComparing(d -> d.getString("resource_path"))
         );
 
-        // Step 5: print
-        System.out.println("\n========== QUERY 2 : Top Requested Resources ==========");
+        // Step 5: prepare rows for postgres
+        List<Map<String, Object>> rows =
+                new ArrayList<>();
 
         for (Document doc : output) {
 
-            System.out.println(
-                    doc.getString("path") + " | " +
-                            doc.getInteger("requestCount") + " | " +
-                            ((Number) doc.get("totalBytes")).longValue() + " | " +
-                            ((Set<?>) doc.get("hosts")).size()
+            String path =
+                    doc.getString("resource_path");
+
+            Set<Integer> batches =
+                    batchTracker.get(path);
+
+            List<Integer> sortedBatches =
+                    new ArrayList<>(batches);
+
+            Collections.sort(sortedBatches);
+
+            String batchString =
+                    String.join("+",
+                            sortedBatches.stream()
+                                    .map(String::valueOf)
+                                    .toArray(String[]::new)
+                    );
+
+            Map<String, Object> row =
+                    new LinkedHashMap<>();
+
+            row.put("resource_path", path);
+            row.put("request_count",
+                    doc.getInteger("request_count"));
+            row.put("total_bytes",
+                    ((Number) doc.get("total_bytes")).longValue());
+            row.put("distinct_hosts",
+                    ((Set<?>) doc.get("hosts")).size());
+            row.put("batch_id", batchString);
+            row.put("run_id", runId);
+            row.put("pipeline_name", pipelineName);
+            row.put("executed_at", executedAt);
+
+            rows.add(row);
+        }
+
+        // INSERT INTO POSTGRES query_2
+        PostgresInsertService.flushAndInsert(
+                "query_2",
+                rows
+        );
+
+        // Step 6: print
+        System.out.printf(
+                "%-50s | %-14s | %-14s | %-15s | %-10s | %-36s | %-10s | %-25s%n",
+                "resource_path", "request_count", "total_bytes",
+                "distinct_hosts", "batches", "run_id",
+                "pipeline", "executed_at"
+        );
+
+        System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+
+        for (Map<String, Object> row : rows) {
+
+            System.out.printf(
+                    "%-50s | %-14d | %-14d | %-15d | %-10s | %-36s | %-10s | %-25s%n",
+                    row.get("resource_path"),
+                    row.get("request_count"),
+                    row.get("total_bytes"),
+                    row.get("distinct_hosts"),
+                    row.get("batch_id"),
+                    row.get("run_id"),
+                    row.get("pipeline_name"),
+                    row.get("executed_at")
             );
         }
     }
