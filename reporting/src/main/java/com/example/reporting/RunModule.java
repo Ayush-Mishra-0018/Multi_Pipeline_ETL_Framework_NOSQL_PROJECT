@@ -1,4 +1,4 @@
-package com.example.mongo.reporting;
+package com.example.reporting;
 
 import com.example.config.ConfigReader;
 import com.example.mongo.runner.QueryRunner;
