@@ -22,6 +22,65 @@
 
 ---
 
+## Project Structure
+
+```
+./
+├── README.md
+├── common
+│   ├── pom.xml
+│   └── src/main/java/com/example
+│       ├── config
+│       │   ├── AppProperties.java
+│       │   └── ConfigReader.java
+│       ├── model
+│       │   ├── BatchResult.java
+│       │   └── ParsedLog.java
+│       └── util
+│           ├── BatchProcessor.java
+│           ├── BatchReader.java
+│           └── LogParser.java
+├── data
+│   ├── NASA_access_log_Aug95
+│   └── NASA_access_log_Jul95
+├── mongo-pipeline
+│   ├── pom.xml
+│   └── src/main/java/com/example/mongo
+│       ├── queries
+│       │   ├── Query1_DailyTraffic_Global.java
+│       │   ├── Query2_TopResources.java
+│       │   └── Query3_HourlyErrorAnalysis.java
+│       ├── runner
+│       │   └── QueryRunner.java
+│       └── service
+│           ├── MongoConnection.java
+│           └── MongoInsertService.java
+├── postgres-loader
+│   ├── pom.xml
+│   └── src/main/java/com/example/postgres/service
+│       ├── PostgresInsertService.java
+│       ├── PostgresReaderService.java
+│       └── PostgresSchemaInitializer.java
+├── reporting
+│   ├── pom.xml
+│   └── src/main/java/com/example/reporting
+│       ├── MongoPipelineMain.java
+│       └── RunModule.java
+└── pom.xml
+```
+
+### Module Responsibilities
+
+| Module | Package | Responsibility |
+|---|---|---|
+| `common` | `config`, `model`, `util` | Shared parsing, batching, and data model classes |
+| `mongo-pipeline` | `queries`, `runner`, `service` | MongoDB aggregation queries and insert service |
+| `postgres-loader` | `postgres/service` | PostgreSQL schema init, insert, and read services |
+| `reporting` | `reporting` | Entry point — orchestrates the full pipeline run |
+| `data` | — | Raw NASA HTTP server log files |
+
+---
+
 ## 1. Introduction
 
 This report presents the implementation status and architecture of the MongoDB-based ETL pipeline for web server log analysis. It highlights the current progress, system design, and workflow used to process and aggregate log data using MongoDB, along with storage of results in PostgreSQL.
