@@ -11,7 +11,7 @@ import java.util.Map;
 
 public final class PostgresInsertService {
 
-    private static final String URL =
+    private static final String BASE_URL =
             ConfigReader.get("postgres.url");
 
     private static final String USER =
@@ -24,14 +24,18 @@ public final class PostgresInsertService {
     }
 
     public static void flushAndInsert(
+            String databaseName,
             String tableName,
             List<Map<String, Object>> rows
     ) {
 
+        String jdbcUrl =
+                BASE_URL + "/" + databaseName;
+
         try (
                 Connection conn =
                         DriverManager.getConnection(
-                                URL,
+                                jdbcUrl,
                                 USER,
                                 PASSWORD
                         )
@@ -47,7 +51,14 @@ public final class PostgresInsertService {
             );
 
             if (rows == null || rows.isEmpty()) {
+
                 conn.commit();
+
+                System.out.println(
+                        "No rows found for table: " +
+                                tableName
+                );
+
                 return;
             }
 
@@ -65,10 +76,13 @@ public final class PostgresInsertService {
             for (String col : firstRow.keySet()) {
 
                 cols.append(col);
+
                 vals.append("?");
 
                 if (i < firstRow.size() - 1) {
+
                     cols.append(",");
+
                     vals.append(",");
                 }
 
@@ -76,8 +90,13 @@ public final class PostgresInsertService {
             }
 
             String sql =
-                    "INSERT INTO " + tableName +
-                            " (" + cols + ") VALUES (" + vals + ")";
+                    "INSERT INTO " +
+                            tableName +
+                            " (" +
+                            cols +
+                            ") VALUES (" +
+                            vals +
+                            ")";
 
             PreparedStatement ps =
                     conn.prepareStatement(sql);
@@ -87,7 +106,11 @@ public final class PostgresInsertService {
                 int index = 1;
 
                 for (Object value : row.values()) {
-                    ps.setObject(index++, value);
+
+                    ps.setObject(
+                            index++,
+                            value
+                    );
                 }
 
                 ps.addBatch();
@@ -101,10 +124,13 @@ public final class PostgresInsertService {
                     "Inserted " +
                             rows.size() +
                             " rows into " +
-                            tableName
+                            tableName +
+                            " in database " +
+                            databaseName
             );
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
     }

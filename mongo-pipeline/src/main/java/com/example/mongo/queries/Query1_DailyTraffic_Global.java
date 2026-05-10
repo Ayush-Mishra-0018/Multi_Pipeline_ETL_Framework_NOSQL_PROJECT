@@ -185,6 +185,7 @@ public class Query1_DailyTraffic_Global {
         // STEP 5: INSERT INTO POSTGRES
         // =========================
         PostgresInsertService.flushAndInsert(
+                "mongodb",
                 "query_1",
                 rows
         );

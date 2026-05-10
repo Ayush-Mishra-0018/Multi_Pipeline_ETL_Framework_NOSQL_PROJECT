@@ -9,7 +9,7 @@ import java.sql.Statement;
 
 public final class PostgresSchemaInitializer {
 
-    private static final String JDBC_URL =
+    private static final String BASE_URL =
             ConfigReader.get("postgres.url");
 
     private static final String USER =
@@ -18,20 +18,18 @@ public final class PostgresSchemaInitializer {
     private static final String PASSWORD =
             ConfigReader.get("postgres.password");
 
-    private static final String DB_NAME =
-            JDBC_URL.substring(JDBC_URL.lastIndexOf("/") + 1);
-
-    private static final String BASE_URL =
-            JDBC_URL.substring(0, JDBC_URL.lastIndexOf("/"));
-
     private PostgresSchemaInitializer() {
     }
 
-    public static void initialize() {
+    public static void initialize(
+            String databaseName
+    ) {
 
         try {
-            createDatabaseIfMissing();
-            createTablesIfMissing();
+
+            createDatabaseIfMissing(databaseName);
+
+            createTablesIfMissing(databaseName);
 
             System.out.println(
                     "PostgreSQL schema initialized successfully."
@@ -42,8 +40,9 @@ public final class PostgresSchemaInitializer {
         }
     }
 
-    private static void createDatabaseIfMissing()
-            throws Exception {
+    private static void createDatabaseIfMissing(
+            String databaseName
+    ) throws Exception {
 
         try (
                 Connection conn =
@@ -60,29 +59,42 @@ public final class PostgresSchemaInitializer {
             ResultSet rs =
                     st.executeQuery(
                             "SELECT 1 FROM pg_database " +
-                                    "WHERE datname = '" + DB_NAME + "'"
+                                    "WHERE datname = '" +
+                                    databaseName + "'"
                     );
 
             if (!rs.next()) {
 
                 st.executeUpdate(
-                        "CREATE DATABASE " + DB_NAME
+                        "CREATE DATABASE " + databaseName
                 );
 
                 System.out.println(
-                        "Database created: " + DB_NAME
+                        "Database created: " +
+                                databaseName
+                );
+
+            } else {
+
+                System.out.println(
+                        "Database already exists: " +
+                                databaseName
                 );
             }
         }
     }
 
-    private static void createTablesIfMissing()
-            throws Exception {
+    private static void createTablesIfMissing(
+            String databaseName
+    ) throws Exception {
+
+        String jdbcUrl =
+                BASE_URL + "/" + databaseName;
 
         try (
                 Connection conn =
                         DriverManager.getConnection(
-                                JDBC_URL,
+                                jdbcUrl,
                                 USER,
                                 PASSWORD
                         );

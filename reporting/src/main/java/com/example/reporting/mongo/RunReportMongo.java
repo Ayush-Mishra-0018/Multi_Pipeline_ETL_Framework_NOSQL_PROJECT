@@ -1,148 +1,168 @@
-package com.example.reporting;
+package com.example.reporting.mongo;
 
 import com.example.config.ConfigReader;
+import com.example.mongo.dataSetup.MongoDataSetupExecutor;
 import com.example.mongo.runner.QueryRunner;
-import com.example.mongo.service.MongoConnection;
-import com.example.postgres.service.PostgresReaderService;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.example.reporting.postgres.PostgresReportService;
 import org.bson.Document;
 
-import java.util.Arrays;
+import java.util.List;
 
-import static com.mongodb.client.model.Sorts.descending;
+public class RunReportMongo {
 
-public class RunModule {
-
-    public static void reporting(long startTime) {
-
-//        long startTime = System.currentTimeMillis();
+    public static void reporting(
+            List<Integer> queries
+    ) {
 
         try {
 
             // =========================================
-            // RUN ALL QUERIES
+            // RUN PIPELINE
             // =========================================
-            long queryStartTime = System.currentTimeMillis();
 
-            QueryRunner.runQueries();
+            long pipelineRuntime =
+                    MongoDataSetupExecutor.execute();
 
-            long queryEndTime = System.currentTimeMillis();
+            // =========================================
+            // RUN QUERIES
+            // =========================================
 
             long queryRuntime =
-                    queryEndTime - queryStartTime;
-
-            long totalRuntime =
-                    queryEndTime - startTime;
-
-            int batchSize = Integer.parseInt(
-                    ConfigReader.get("batch.size")
-            );
-
-
-            // =========================================
-            // READ LATEST METADATA FROM MONGODB
-            // =========================================
-            MongoDatabase database =
-                    MongoConnection.getDatabase();
-
-            MongoCollection<Document> metaCollection =
-                    database.getCollection(
-                            "pipeline_run_metadata"
+                    QueryRunner.runQueries(
+                            queries
                     );
 
+            long totalRuntime =
+                    pipelineRuntime + queryRuntime;
+
+            int batchSize =
+                    Integer.parseInt(
+                            ConfigReader.get(
+                                    "batch.size"
+                            )
+                    );
+
+            // =========================================
+            // FETCH METADATA
+            // =========================================
+
             Document meta =
-                    metaCollection
-                            .find()
-                            .sort(descending("_id"))
-                            .first();
-
+                    MongoReportService
+                            .getLatestPipelineMetadata();
 
             // =========================================
-            // NICE HEADER
+            // HEADER
             // =========================================
+
             System.out.println(
                     "\n=============================================================="
             );
+
             System.out.println(
-                    "               FINAL REPORTING DASHBOARD"
+                    "         FINAL REPORTING DASHBOARD - MONGODB"
             );
+
             System.out.println(
                     "=============================================================="
             );
+
+            // =========================================
+            // POSTGRES RESULTS
+            // =========================================
+
             System.out.println(
                     "\n=============================================================="
             );
+
             System.out.println(
                     "POSTGRES STORED RESULTS"
             );
+
             System.out.println(
                     "=============================================================="
             );
 
-            PostgresReaderService.readAllRowsPretty(
-                    Arrays.asList(
-                            "query_1",
-                            "query_2",
-                            "query_3"
-                    )
-            );
+            PostgresReportService.printStoredResults(
 
+                    "mongodb",
+                    queries
+            );
 
             // =========================================
             // EXECUTION METADATA
             // =========================================
-            System.out.println("\nEXECUTION METADATA");
+
+            System.out.println(
+                    "\nEXECUTION METADATA"
+            );
+
             System.out.println(
                     "--------------------------------------------------------------"
+            );
+
+            System.out.printf(
+                    "%-25s : %s%n",
+                    "Pipeline",
+                    "MongoDB"
+            );
+
+            System.out.printf(
+                    "%-25s : %s%n",
+                    "Executed Queries",
+                    queries
+            );
+
+            System.out.printf(
+                    "%-25s : %d%n",
+                    "Batch Size",
+                    batchSize
             );
 
             if (meta != null) {
 
                 System.out.printf(
                         "%-25s : %s%n",
-                        "Pipeline name",
-                        "MongoDB"
-                );
-
-                System.out.printf(
-                        "%-25s : %s%n",
-                        "Batch Size",
-                        batchSize
-                );
-
-                System.out.printf(
-                        "%-25s : %s%n",
                         "Average Batch Size",
                         meta.get("avgBatchSize")
                 );
-
             }
-
 
             System.out.printf(
                     "%-25s : %d ms%n",
-                    "Total Pipeline Runtime",
+                    "Pipeline Runtime",
+                    pipelineRuntime
+            );
+
+            System.out.printf(
+                    "%-25s : %d ms%n",
+                    "Query Runtime",
+                    queryRuntime
+            );
+
+            System.out.printf(
+                    "%-25s : %d ms%n",
+                    "Total Runtime",
                     totalRuntime
             );
 
-
             // =========================================
-            // READ TOP 5 ROWS FROM POSTGRES TABLES
+            // DONE
             // =========================================
-
 
             System.out.println(
                     "\n=============================================================="
             );
+
             System.out.println(
                     "REPORT COMPLETED SUCCESSFULLY"
             );
+
             System.out.println(
                     "=============================================================="
             );
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
     }

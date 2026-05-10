@@ -11,7 +11,7 @@ import java.util.List;
 
 public final class PostgresReaderService {
 
-    private static final String URL =
+    private static final String BASE_URL =
             ConfigReader.get("postgres.url");
 
     private static final String USER =
@@ -24,13 +24,17 @@ public final class PostgresReaderService {
     }
 
     public static void readAllRowsPretty(
+            String databaseName,
             List<String> tableNames
     ) {
+
+        String jdbcUrl =
+                BASE_URL + "/" + databaseName;
 
         try (
                 Connection conn =
                         DriverManager.getConnection(
-                                URL,
+                                jdbcUrl,
                                 USER,
                                 PASSWORD
                         )
@@ -39,6 +43,7 @@ public final class PostgresReaderService {
             for (String table : tableNames) {
 
                 System.out.println();
+
                 printLine(150);
 
                 System.out.println(
@@ -130,16 +135,27 @@ public final class PostgresReaderService {
                             .toLowerCase();
 
             if (name.contains("resource_path")) {
+
                 widths[i - 1] = 40;
+
             } else if (name.contains("batch_id")) {
+
                 widths[i - 1] = 35;
+
             } else if (name.contains("run_id")) {
+
                 widths[i - 1] = 15;
+
             } else if (name.contains("pipeline")) {
+
                 widths[i - 1] = 12;
+
             } else if (name.contains("executed_at")) {
+
                 widths[i - 1] = 28;
+
             } else {
+
                 widths[i - 1] = 18;
             }
         }
@@ -157,6 +173,7 @@ public final class PostgresReaderService {
         }
 
         if (text.length() <= width) {
+
             return text;
         }
 
@@ -182,6 +199,7 @@ public final class PostgresReaderService {
     private static void printLine(
             int n
     ) {
+
         System.out.println(
                 "-".repeat(n)
         );

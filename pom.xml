@@ -15,6 +15,7 @@
     <module>mongo-pipeline</module>
     <module>postgres-loader</module>
     <module>reporting</module>
+      <module>Main</module>
   </modules>
 
   <properties>

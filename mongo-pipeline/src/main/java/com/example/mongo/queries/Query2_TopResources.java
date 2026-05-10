@@ -240,6 +240,7 @@ public class Query2_TopResources {
 
         // INSERT INTO POSTGRES query_2
         PostgresInsertService.flushAndInsert(
+                "mongodb",
                 "query_2",
                 rows
         );

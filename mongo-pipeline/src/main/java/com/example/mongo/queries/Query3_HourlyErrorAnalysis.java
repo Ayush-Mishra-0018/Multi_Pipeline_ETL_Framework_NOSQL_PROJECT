@@ -268,6 +268,7 @@ public class Query3_HourlyErrorAnalysis {
 
         // INSERT INTO POSTGRES TABLE query_3
         PostgresInsertService.flushAndInsert(
+                "mongodb",
                 "query_3",
                 rows
         );
