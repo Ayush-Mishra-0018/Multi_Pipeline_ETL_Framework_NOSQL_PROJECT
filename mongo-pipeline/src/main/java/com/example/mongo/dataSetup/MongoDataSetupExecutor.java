@@ -145,7 +145,7 @@ public final class MongoDataSetupExecutor {
                     totalMalformed,
                     totalBatches,
                     avgBatchSize,
-                    totalTime
+                    totalTime // runid
             );
 
             System.out.println(

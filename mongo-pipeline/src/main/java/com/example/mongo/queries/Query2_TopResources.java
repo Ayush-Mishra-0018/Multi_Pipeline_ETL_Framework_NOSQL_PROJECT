@@ -239,7 +239,7 @@ public class Query2_TopResources {
         }
 
         // INSERT INTO POSTGRES query_2
-        PostgresInsertService.flushAndInsert(
+        PostgresInsertService.Insert(
                 "mongodb",
                 "query_2",
                 rows

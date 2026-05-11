@@ -20,9 +20,12 @@ public final class PostgresSchemaInitializer {
 
     private PostgresSchemaInitializer() {
     }
-
-    public static void initialize(
-            String databaseName
+    public  static int initializeGlobal(){
+        // global db only called by main /// not FLUSH
+        return 0;
+    }
+    public static void initialize( // this always flushes
+            String databaseName // mongo hive pig map
     ) {
 
         try {

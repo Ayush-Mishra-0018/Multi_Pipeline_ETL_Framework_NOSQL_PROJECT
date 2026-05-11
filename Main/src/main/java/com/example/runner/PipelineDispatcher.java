@@ -11,7 +11,8 @@ public final class PipelineDispatcher {
 
     public static void dispatch(
             int pipelineChoice,
-            List<Integer> queries
+            List<Integer> queries,
+            int newRunId
     ) {
 
         switch (pipelineChoice) {
@@ -23,7 +24,8 @@ public final class PipelineDispatcher {
                 );
 
                 RunReportMongo.reporting(
-                        queries
+                        queries,
+                        newRunId
                 );
 
                 break;

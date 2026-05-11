@@ -23,7 +23,7 @@ public final class PostgresInsertService {
     private PostgresInsertService() {
     }
 
-    public static void flushAndInsert(
+    public static void Insert(
             String databaseName,
             String tableName,
             List<Map<String, Object>> rows
@@ -43,12 +43,12 @@ public final class PostgresInsertService {
 
             conn.setAutoCommit(false);
 
-            Statement st =
-                    conn.createStatement();
-
-            st.executeUpdate(
-                    "TRUNCATE TABLE " + tableName
-            );
+//            Statement st =
+//                    conn.createStatement();
+//
+//            st.executeUpdate(
+//                    "TRUNCATE TABLE " + tableName // now this logic will be handled by init file
+//            );
 
             if (rows == null || rows.isEmpty()) {
 

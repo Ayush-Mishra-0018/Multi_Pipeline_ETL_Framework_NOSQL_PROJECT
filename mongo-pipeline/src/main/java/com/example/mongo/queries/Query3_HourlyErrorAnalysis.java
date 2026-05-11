@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 
 public class Query3_HourlyErrorAnalysis {
 
-    public static void run(MongoDatabase database) {
+    public static void run(MongoDatabase database) { // runid
 
         // metadata
         String pipelineName = "mongodb";
@@ -267,7 +267,7 @@ public class Query3_HourlyErrorAnalysis {
         }
 
         // INSERT INTO POSTGRES TABLE query_3
-        PostgresInsertService.flushAndInsert(
+        PostgresInsertService.Insert(
                 "mongodb",
                 "query_3",
                 rows

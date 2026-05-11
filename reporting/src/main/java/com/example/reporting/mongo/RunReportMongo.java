@@ -11,7 +11,8 @@ import java.util.List;
 public class RunReportMongo {
 
     public static void reporting(
-            List<Integer> queries
+            List<Integer> queries,
+            int newRunId // use this for global insert functions
     ) {
 
         try {
@@ -49,6 +50,13 @@ public class RunReportMongo {
             Document meta =
                     MongoReportService
                             .getLatestPipelineMetadata();
+            // #########################
+            // #########################
+            // #########################
+            // write this latest data in global in postgres
+            // #########################
+            // #########################
+            // #########################
 
             // =========================================
             // HEADER
@@ -87,6 +95,7 @@ public class RunReportMongo {
                     "mongodb",
                     queries
             );
+            // to print global call the function again.
 
             // =========================================
             // EXECUTION METADATA

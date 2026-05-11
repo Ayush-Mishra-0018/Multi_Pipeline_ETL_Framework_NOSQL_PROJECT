@@ -2,6 +2,7 @@ package com.example;
 
 import com.example.input.UserInputHandler;
 import com.example.menu.ConsoleMenu;
+import com.example.postgres.service.PostgresSchemaInitializer;
 import com.example.runner.PipelineDispatcher;
 
 import java.util.List;
@@ -21,10 +22,12 @@ public class Main {
 
         List<Integer> queries =
                 UserInputHandler.getQueries();
+        int newRunId= PostgresSchemaInitializer.initializeGlobal();
 
         PipelineDispatcher.dispatch(
                 pipelineChoice,
-                queries
+                queries,
+                newRunId
         );
     }
 }

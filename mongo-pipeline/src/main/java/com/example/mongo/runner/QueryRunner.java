@@ -18,7 +18,7 @@ public class QueryRunner {
         long startTime =
                 System.currentTimeMillis();
 
-        PostgresSchemaInitializer.initialize(
+        PostgresSchemaInitializer.initialize( // this calls init
                 "mongodb"
         );
 
@@ -27,7 +27,7 @@ public class QueryRunner {
             switch (query) {
 
                 case 1:
-                    runQuery1();
+                    runQuery1(); // write their output in pg
                     break;
 
                 case 2:
@@ -44,6 +44,7 @@ public class QueryRunner {
                     );
             }
         }
+        // global insert of postgres
 
         long endTime =
                 System.currentTimeMillis();
@@ -51,7 +52,7 @@ public class QueryRunner {
         return endTime - startTime;
     }
 
-    public static void runQuery1() {
+    public static void runQuery1() { // this calls insert
 
         try {
 

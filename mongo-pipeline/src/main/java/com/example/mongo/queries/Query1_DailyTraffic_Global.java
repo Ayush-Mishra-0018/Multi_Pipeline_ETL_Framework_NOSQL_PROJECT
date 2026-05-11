@@ -184,7 +184,7 @@ public class Query1_DailyTraffic_Global {
         // =========================
         // STEP 5: INSERT INTO POSTGRES
         // =========================
-        PostgresInsertService.flushAndInsert(
+        PostgresInsertService.Insert( // runid
                 "mongodb",
                 "query_1",
                 rows
