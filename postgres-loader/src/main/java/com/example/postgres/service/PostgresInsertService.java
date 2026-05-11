@@ -181,35 +181,44 @@ public final class PostgresInsertService {
                             );
             ) {
 
-                for (Integer query : queries) {
 
-                    ps.setString(
-                            1,
-                            pipelineName
-                    );
+                int queryName;
 
-                    ps.setInt(
-                            2,
-                            query
-                    );
+                if (queries.size() == 3) {
 
-                    ps.setDouble(
-                            3,
-                            totalRuntime
-                    );
+                    queryName = 4;
 
-                    ps.executeUpdate();
+                } else {
 
-                    ResultSet rs =
-                            ps.getGeneratedKeys();
-
-
-
-                    if (rs.next()) {
-
-                        runId = rs.getInt(1);
-                    }
+                    queryName = queries.get(0);
                 }
+
+                ps.setString(
+                        1,
+                        pipelineName
+                );
+
+                ps.setInt(
+                        2,
+                        queryName
+                );
+
+                ps.setDouble(
+                        3,
+                        totalRuntime
+                );
+
+                ps.executeUpdate();
+
+                ResultSet rs =
+                        ps.getGeneratedKeys();
+
+                if (rs.next()) {
+
+                    runId = rs.getInt(1);
+                }
+
+
             }
 
             // =========================================
