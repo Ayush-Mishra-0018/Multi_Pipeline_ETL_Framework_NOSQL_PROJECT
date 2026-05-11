@@ -20,9 +20,99 @@ public final class PostgresSchemaInitializer {
 
     private PostgresSchemaInitializer() {
     }
-    public  static int initializeGlobal(){
-        // global db only called by main /// not FLUSH
-        return 0;
+
+    // called by main and never flushed
+    public static int initializeGlobal() {
+
+        String globalDatabase = "global_db";
+
+        try {
+
+            createDatabaseIfMissing(globalDatabase);
+
+            String jdbcUrl =
+                    BASE_URL + "/" + globalDatabase;
+
+            try (
+                    Connection conn =
+                            DriverManager.getConnection(
+                                    jdbcUrl,
+                                    USER,
+                                    PASSWORD
+                            );
+
+                    Statement st =
+                            conn.createStatement()
+            ) {
+
+                st.executeUpdate(
+                        "CREATE TABLE IF NOT EXISTS run_metadata (" +
+                                "run_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
+                                "pipeline_name VARCHAR(255) NOT NULL," +
+
+                                "query_name INTEGER NOT NULL " +
+                                "CHECK (query_name >= 1 AND query_name <= 4)," +
+
+                                "runtime NUMERIC(10,3) NOT NULL," +
+
+                                "execution_timestamp TIMESTAMP WITH TIME ZONE " +
+                                "NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                                ")"
+                );
+
+                // Create batch_metadata table
+                st.executeUpdate(
+                        "CREATE TABLE IF NOT EXISTS batch_metadata (" +
+                                "run_id INTEGER PRIMARY KEY " +
+                                "REFERENCES run_metadata(run_id)," +
+
+                                "pipeline_name VARCHAR(255) NOT NULL," +
+
+                                "total_records INTEGER NOT NULL," +
+                                "total_valid INTEGER NOT NULL," +
+
+                                "total_malformed INTEGER NOT NULL DEFAULT 0," +
+
+                                "total_batches INTEGER NOT NULL," +
+
+                                "avg_batch_size DOUBLE PRECISION NOT NULL," +
+
+                                "execution_time_ms INTEGER NOT NULL," +
+
+                                "timestamp TIMESTAMP WITH TIME ZONE " +
+                                "NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+                                ")"
+                );
+
+                // Get next run_id safely
+                ResultSet rs =
+                        st.executeQuery(
+                                "SELECT nextval(" +
+                                        "pg_get_serial_sequence(" +
+                                        "'run_metadata', " +
+                                        "'run_id'" +
+                                        ")" +
+                                        ")"
+                        );
+
+                rs.next();
+
+                int runId = rs.getInt(1);
+
+                System.out.println(
+                        "Global schema initialized. " +
+                                "New run_id = " + runId
+                );
+
+                return runId;
+            }
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return -1;
+        }
     }
     public static void initialize( // this always flushes
             String databaseName // mongo hive pig map
@@ -87,6 +177,44 @@ public final class PostgresSchemaInitializer {
         }
     }
 
+    private static void truncateTables(
+            Statement st
+    ) throws Exception {
+
+        try {
+
+            st.executeQuery(
+                    "SELECT * FROM query_1 LIMIT 1"
+            );
+
+            st.executeQuery(
+                    "SELECT * FROM query_2 LIMIT 1"
+            );
+
+            st.executeQuery(
+                    "SELECT * FROM query_3 LIMIT 1"
+            );
+
+            st.executeUpdate(
+                    "TRUNCATE TABLE " +
+                            "query_1, " +
+                            "query_2, " +
+                            "query_3 " +
+                            "RESTART IDENTITY"
+            );
+
+            System.out.println(
+                    "Existing tables truncated."
+            );
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Tables do not exist yet. Skipping truncate."
+            );
+        }
+    }
+
     private static void createTablesIfMissing(
             String databaseName
     ) throws Exception {
@@ -105,6 +233,9 @@ public final class PostgresSchemaInitializer {
                 Statement st =
                         conn.createStatement()
         ) {
+
+
+            truncateTables(st);
 
             st.executeUpdate(
                     "CREATE TABLE IF NOT EXISTS query_1 (" +
@@ -136,7 +267,9 @@ public final class PostgresSchemaInitializer {
 
             st.executeUpdate(
                     "CREATE TABLE IF NOT EXISTS query_3 (" +
+                            "id SERIAL PRIMARY KEY," +
                             "log_date TEXT," +
+
                             "log_hour INT," +
                             "error_request_count INT," +
                             "total_request_count INT," +

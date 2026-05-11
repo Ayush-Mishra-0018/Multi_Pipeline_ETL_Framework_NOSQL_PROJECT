@@ -1,12 +1,14 @@
-package com.example.reporting.mongo;
+package com.example.mongo;
 
 import com.example.config.ConfigReader;
 import com.example.mongo.dataSetup.MongoDataSetupExecutor;
 import com.example.mongo.runner.QueryRunner;
 import com.example.reporting.postgres.PostgresReportService;
 import org.bson.Document;
-
 import java.util.List;
+import java.sql.*;
+import com.example.postgres.service.PostgresInsertService;
+
 
 public class RunReportMongo {
 
@@ -48,7 +50,7 @@ public class RunReportMongo {
             // =========================================
 
             Document meta =
-                    MongoReportService
+                    com.example.reporting.mongo.MongoReportService
                             .getLatestPipelineMetadata();
             // #########################
             // #########################
@@ -57,6 +59,14 @@ public class RunReportMongo {
             // #########################
             // #########################
             // #########################
+
+            PostgresInsertService.insertGlobalMetadata(
+                    newRunId,
+                    "mongodb",
+                    queries,
+                    totalRuntime,
+                    meta
+            );;
 
             // =========================================
             // HEADER

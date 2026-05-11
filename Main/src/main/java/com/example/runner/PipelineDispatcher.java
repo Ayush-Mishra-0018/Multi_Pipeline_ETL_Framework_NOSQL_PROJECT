@@ -1,8 +1,10 @@
 package com.example.runner;
 
-import com.example.reporting.mongo.RunReportMongo;
+
+import com.example.mongo.RunReportMongo;
 
 import java.util.List;
+
 
 public final class PipelineDispatcher {
 

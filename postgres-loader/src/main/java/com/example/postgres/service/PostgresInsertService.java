@@ -2,6 +2,7 @@ package com.example.postgres.service;
 
 import com.example.config.ConfigReader;
 
+import org.bson.Document;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -127,6 +128,168 @@ public final class PostgresInsertService {
                             tableName +
                             " in database " +
                             databaseName
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+    }
+
+
+
+    public static void insertGlobalMetadata(
+            int runId,
+            String pipelineName,
+            List<Integer> queries,
+            long totalRuntime,
+            Document meta
+    ) {
+
+        String globalDatabase = "global_db";
+
+        String jdbcUrl =
+                BASE_URL + "/" + globalDatabase;
+
+        try (
+                Connection conn =
+                        DriverManager.getConnection(
+                                jdbcUrl,
+                                USER,
+                                PASSWORD
+                        )
+        ) {
+
+            // =========================================
+            // INSERT INTO run_metadata
+            // =========================================
+
+            String runSql =
+                    "INSERT INTO run_metadata (" +
+                            "run_id, " +
+                            "pipeline_name, " +
+                            "query_name, " +
+                            "runtime" +
+                            ") " +
+                            "VALUES (?, ?, ?, ?)";
+
+            try (
+                    PreparedStatement ps =
+                            conn.prepareStatement(runSql)
+            ) {
+
+                for (Integer query : queries) {
+
+                    ps.setInt(1, runId);
+
+                    ps.setString(
+                            2,
+                            pipelineName
+                    );
+
+                    ps.setInt(
+                            3,
+                            query
+                    );
+
+                    ps.setDouble(
+                            4,
+                            totalRuntime
+                    );
+
+                    ps.executeUpdate();
+                }
+            }
+
+            // =========================================
+            // EXTRACT MONGO METADATA
+            // =========================================
+
+            int totalRecords =
+                    meta.getInteger("totalRecords", 0);
+
+            int totalValid =
+                    meta.getInteger("totalValid", 0);
+
+            int totalMalformed =
+                    meta.getInteger("totalMalformed", 0);
+
+            int totalBatches =
+                    meta.getInteger("totalBatches", 0);
+
+            double avgBatchSize =
+                    meta.getDouble("avgBatchSize");
+
+            int executionTimeMs =
+                    meta.getInteger(
+                            "executionTimeMs",
+                            0
+                    );
+
+            // =========================================
+            // INSERT INTO batch_metadata
+            // =========================================
+
+            String batchSql =
+                    "INSERT INTO batch_metadata (" +
+                            "run_id, " +
+                            "pipeline_name, " +
+                            "total_records, " +
+                            "total_valid, " +
+                            "total_malformed, " +
+                            "total_batches, " +
+                            "avg_batch_size, " +
+                            "execution_time_ms" +
+                            ") " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (
+                    PreparedStatement ps =
+                            conn.prepareStatement(batchSql)
+            ) {
+
+                ps.setInt(1, runId);
+
+                ps.setString(
+                        2,
+                        pipelineName
+                );
+
+                ps.setInt(
+                        3,
+                        totalRecords
+                );
+
+                ps.setInt(
+                        4,
+                        totalValid
+                );
+
+                ps.setInt(
+                        5,
+                        totalMalformed
+                );
+
+                ps.setInt(
+                        6,
+                        totalBatches
+                );
+
+                ps.setDouble(
+                        7,
+                        avgBatchSize
+                );
+
+                ps.setInt(
+                        8,
+                        executionTimeMs
+                );
+
+                ps.executeUpdate();
+            }
+
+            System.out.println(
+                    "Global metadata inserted successfully."
             );
 
         } catch (Exception e) {
