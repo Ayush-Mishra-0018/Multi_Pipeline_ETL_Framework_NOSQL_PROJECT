@@ -13,8 +13,7 @@ import com.example.postgres.service.PostgresInsertService;
 public class RunReportMongo {
 
     public static void reporting(
-            List<Integer> queries,
-            int newRunId // use this for global insert functions
+            List<Integer> queries
     ) {
 
         try {
@@ -61,7 +60,6 @@ public class RunReportMongo {
             // #########################
 
             PostgresInsertService.insertGlobalMetadata(
-                    newRunId,
                     "mongodb",
                     queries,
                     totalRuntime,

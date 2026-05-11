@@ -3,10 +3,8 @@ package com.example.postgres.service;
 import com.example.config.ConfigReader;
 
 import org.bson.Document;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
+
+import java.sql.*;
 import java.util.List;
 import java.util.Map;
 
@@ -139,12 +137,13 @@ public final class PostgresInsertService {
 
 
     public static void insertGlobalMetadata(
-            int runId,
             String pipelineName,
             List<Integer> queries,
             long totalRuntime,
             Document meta
     ) {
+
+        int runId = -1;
 
         String globalDatabase = "global_db";
 
@@ -166,38 +165,48 @@ public final class PostgresInsertService {
 
             String runSql =
                     "INSERT INTO run_metadata (" +
-                            "run_id, " +
                             "pipeline_name, " +
                             "query_name, " +
                             "runtime" +
                             ") " +
-                            "VALUES (?, ?, ?, ?)";
+                            "VALUES (?, ?, ?)";
 
             try (
                     PreparedStatement ps =
-                            conn.prepareStatement(runSql)
+                            conn.prepareStatement(
+                                    runSql,
+                                    Statement.RETURN_GENERATED_KEYS
+                            );
             ) {
 
                 for (Integer query : queries) {
 
-                    ps.setInt(1, runId);
-
                     ps.setString(
-                            2,
+                            1,
                             pipelineName
                     );
 
                     ps.setInt(
-                            3,
+                            2,
                             query
                     );
 
                     ps.setDouble(
-                            4,
+                            3,
                             totalRuntime
                     );
 
                     ps.executeUpdate();
+
+                    ResultSet rs =
+                            ps.getGeneratedKeys();
+
+
+
+                    if (rs.next()) {
+
+                        runId = rs.getInt(1);
+                    }
                 }
             }
 
@@ -206,25 +215,24 @@ public final class PostgresInsertService {
             // =========================================
 
             int totalRecords =
-                    meta.getInteger("totalRecords", 0);
+                    ((Number) meta.getOrDefault("totalRecords", 0)).intValue();
 
             int totalValid =
-                    meta.getInteger("totalValid", 0);
+                    ((Number) meta.getOrDefault("totalValid", 0)).intValue();
 
             int totalMalformed =
-                    meta.getInteger("totalMalformed", 0);
+                    ((Number) meta.getOrDefault("totalMalformed", 0)).intValue();
 
             int totalBatches =
-                    meta.getInteger("totalBatches", 0);
+                    ((Number) meta.getOrDefault("totalBatches", 0)).intValue();
 
             double avgBatchSize =
-                    meta.getDouble("avgBatchSize");
+                    ((Number) meta.getOrDefault("avgBatchSize", 0)).doubleValue();
 
             int executionTimeMs =
-                    meta.getInteger(
-                            "executionTimeMs",
-                            0
-                    );
+                    ((Number) meta.getOrDefault("executionTimeMs", 0)).intValue();
+
+
 
             // =========================================
             // INSERT INTO batch_metadata
@@ -288,6 +296,8 @@ public final class PostgresInsertService {
                 ps.executeUpdate();
             }
 
+
+            conn.commit();
             System.out.println(
                     "Global metadata inserted successfully."
             );

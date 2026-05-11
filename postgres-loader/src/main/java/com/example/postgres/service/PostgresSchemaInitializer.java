@@ -22,7 +22,7 @@ public final class PostgresSchemaInitializer {
     }
 
     // called by main and never flushed
-    public static int initializeGlobal() {
+    public static void initializeGlobal() {
 
         String globalDatabase = "global_db";
 
@@ -84,34 +84,12 @@ public final class PostgresSchemaInitializer {
                                 ")"
                 );
 
-                // Get next run_id safely
-                ResultSet rs =
-                        st.executeQuery(
-                                "SELECT nextval(" +
-                                        "pg_get_serial_sequence(" +
-                                        "'run_metadata', " +
-                                        "'run_id'" +
-                                        ")" +
-                                        ")"
-                        );
-
-                rs.next();
-
-                int runId = rs.getInt(1);
-
-                System.out.println(
-                        "Global schema initialized. " +
-                                "New run_id = " + runId
-                );
-
-                return runId;
             }
 
         } catch (Exception e) {
 
             e.printStackTrace();
 
-            return -1;
         }
     }
     public static void initialize( // this always flushes

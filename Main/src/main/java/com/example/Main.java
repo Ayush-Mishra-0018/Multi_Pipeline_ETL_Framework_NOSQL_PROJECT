@@ -22,12 +22,11 @@ public class Main {
 
         List<Integer> queries =
                 UserInputHandler.getQueries();
-        int newRunId= PostgresSchemaInitializer.initializeGlobal();
+        PostgresSchemaInitializer.initializeGlobal();
 
         PipelineDispatcher.dispatch(
                 pipelineChoice,
-                queries,
-                newRunId
+                queries
         );
     }
 }
