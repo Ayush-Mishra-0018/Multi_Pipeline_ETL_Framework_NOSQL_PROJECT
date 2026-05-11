@@ -171,9 +171,6 @@ public class Query1_DailyTraffic_Global {
             row.put("request_count", doc.getInteger("request_count"));
             row.put("total_bytes", doc.getLong("total_bytes"));
             row.put("batch_id", batchString);
-            row.put("run_id", runId);
-            row.put("pipeline_name", pipelineName);
-            row.put("executed_at", executedAt); // ✅ FIXED — now java.sql.Timestamp
 
             rows.add(row);
         }
@@ -194,9 +191,9 @@ public class Query1_DailyTraffic_Global {
         // STEP 6: PRINT OUTPUT
         // =========================
         System.out.printf(
-                "%-12s | %-12s | %-15s | %-15s | %-10s | %-36s | %-10s | %-25s%n",
+                "%-12s | %-12s | %-15s | %-15s | %-10s%n",
                 "log_date", "status_code", "request_count", "total_bytes",
-                "batches", "run_id", "pipeline", "executed_at"
+                "batches"
         );
 
         System.out.println("--------------------------------------------------------------------------------------------------------------");
@@ -204,15 +201,12 @@ public class Query1_DailyTraffic_Global {
         for (Map<String, Object> row : rows) {
 
             System.out.printf(
-                    "%-12s | %-12d | %-15d | %-15d | %-10s | %-36s | %-10s | %-25s%n",
+                    "%-12s | %-12d | %-15d | %-15d | %-10s%n",
                     row.get("log_date"),
                     row.get("status_code"),
                     row.get("request_count"),
                     row.get("total_bytes"),
-                    row.get("batch_id"),
-                    row.get("run_id"),
-                    row.get("pipeline_name"),
-                    row.get("executed_at")
+                    row.get("batch_id")
             );
         }
     }

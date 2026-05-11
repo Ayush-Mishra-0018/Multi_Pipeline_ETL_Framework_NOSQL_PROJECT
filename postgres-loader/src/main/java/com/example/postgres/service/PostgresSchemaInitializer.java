@@ -222,10 +222,7 @@ public final class PostgresSchemaInitializer {
                             "status_code INT," +
                             "request_count BIGINT," +
                             "total_bytes BIGINT," +
-                            "batch_id TEXT," +
-                            "run_id TEXT," +
-                            "pipeline_name TEXT," +
-                            "executed_at TIMESTAMP" +
+                            "batch_id TEXT" +
                             ")"
             );
 
@@ -236,10 +233,7 @@ public final class PostgresSchemaInitializer {
                             "request_count INT," +
                             "total_bytes BIGINT," +
                             "distinct_hosts INT," +
-                            "batch_id TEXT," +
-                            "run_id TEXT," +
-                            "pipeline_name TEXT," +
-                            "executed_at TIMESTAMP" +
+                            "batch_id TEXT" +
                             ")"
             );
 
@@ -253,10 +247,7 @@ public final class PostgresSchemaInitializer {
                             "total_request_count INT," +
                             "error_rate DOUBLE PRECISION," +
                             "distinct_error_hosts INT," +
-                            "batch_id TEXT," +
-                            "run_id TEXT," +
-                            "pipeline_name TEXT," +
-                            "executed_at TIMESTAMP" +
+                            "batch_id TEXT" +
                             ")"
             );
         }

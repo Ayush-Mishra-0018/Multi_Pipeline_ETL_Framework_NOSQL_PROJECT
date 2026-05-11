@@ -159,6 +159,8 @@ public final class PostgresInsertService {
                         )
         ) {
 
+            conn.setAutoCommit(false);
+
             // =========================================
             // INSERT INTO run_metadata
             // =========================================

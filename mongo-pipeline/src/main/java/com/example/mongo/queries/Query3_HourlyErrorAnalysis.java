@@ -254,15 +254,6 @@ public class Query3_HourlyErrorAnalysis {
             row.put("batch_id",
                     batchString);
 
-            row.put("run_id",
-                    runId);
-
-            row.put("pipeline_name",
-                    pipelineName);
-
-            row.put("executed_at",
-                    executedAt);
-
             rows.add(row);
         }
 
@@ -278,11 +269,10 @@ public class Query3_HourlyErrorAnalysis {
         // =========================================
 
         System.out.printf(
-                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s | %-36s | %-10s | %-25s%n",
+                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s%n",
                 "log_date", "log_hour", "error_request_count",
                 "total_request_count", "error_rate",
-                "distinct_error_hosts", "batches",
-                "run_id", "pipeline", "executed_at"
+                "distinct_error_hosts", "batches"
         );
 
         System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
@@ -290,17 +280,14 @@ public class Query3_HourlyErrorAnalysis {
         for (Map<String, Object> row : rows) {
 
             System.out.printf(
-                    "%-12s | %-8d | %-20d | %-20d | %-12.2f | %-20d | %-10s | %-36s | %-10s | %-25s%n",
+                    "%-12s | %-8d | %-20d | %-20d | %-12.2f | %-20d | %-10s | %-36s | %-10s%n",
                     row.get("log_date"),
                     row.get("log_hour"),
                     row.get("error_request_count"),
                     row.get("total_request_count"),
                     row.get("error_rate"),
                     row.get("distinct_error_hosts"),
-                    row.get("batch_id"),
-                    row.get("run_id"),
-                    row.get("pipeline_name"),
-                    row.get("executed_at")
+                    row.get("batch_id")
             );
         }
     }

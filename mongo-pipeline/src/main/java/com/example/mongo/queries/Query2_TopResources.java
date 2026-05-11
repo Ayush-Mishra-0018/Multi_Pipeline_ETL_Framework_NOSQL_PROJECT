@@ -231,9 +231,6 @@ public class Query2_TopResources {
             row.put("distinct_hosts",
                     ((Set<?>) doc.get("hosts")).size());
             row.put("batch_id", batchString);
-            row.put("run_id", runId);
-            row.put("pipeline_name", pipelineName);
-            row.put("executed_at", executedAt);
 
             rows.add(row);
         }
@@ -247,7 +244,7 @@ public class Query2_TopResources {
 
         // Step 6: print
         System.out.printf(
-                "%-50s | %-14s | %-14s | %-15s | %-10s | %-36s | %-10s | %-25s%n",
+                "%-50s | %-14s | %-14s | %-15s | %-10s%n",
                 "resource_path", "request_count", "total_bytes",
                 "distinct_hosts", "batches", "run_id",
                 "pipeline", "executed_at"
@@ -258,15 +255,12 @@ public class Query2_TopResources {
         for (Map<String, Object> row : rows) {
 
             System.out.printf(
-                    "%-50s | %-14d | %-14d | %-15d | %-10s | %-36s | %-10s | %-25s%n",
+                    "%-50s | %-14d | %-14d | %-15d | %-10s%n",
                     row.get("resource_path"),
                     row.get("request_count"),
                     row.get("total_bytes"),
                     row.get("distinct_hosts"),
-                    row.get("batch_id"),
-                    row.get("run_id"),
-                    row.get("pipeline_name"),
-                    row.get("executed_at")
+                    row.get("batch_id")
             );
         }
     }
