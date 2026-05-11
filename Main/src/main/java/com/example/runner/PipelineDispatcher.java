@@ -1,6 +1,7 @@
 package com.example.runner;
 
 
+import com.example.hive.RunReportHive;
 import com.example.mongo.RunReportMongo;
 
 import java.util.List;
@@ -32,9 +33,7 @@ public final class PipelineDispatcher {
 
             case 2:
 
-                System.out.println(
-                        "\nHive pipeline not implemented yet."
-                );
+                RunReportHive.reporting(queries);
 
                 break;
 
