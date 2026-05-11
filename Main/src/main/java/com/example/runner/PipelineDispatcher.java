@@ -2,6 +2,7 @@ package com.example.runner;
 
 
 import com.example.hive.RunReportHive;
+import com.example.mapReduce.RunReportMapReduce;
 import com.example.mongo.RunReportMongo;
 import com.example.pig.RunReportPig;
 
@@ -46,9 +47,7 @@ public final class PipelineDispatcher {
 
             case 4:
 
-                System.out.println(
-                        "\nMapReduce pipeline not implemented yet."
-                );
+                RunReportMapReduce.reporting(queries);
 
                 break;
 
