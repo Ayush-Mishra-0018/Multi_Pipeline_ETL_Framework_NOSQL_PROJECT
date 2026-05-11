@@ -12,10 +12,14 @@
 
   <modules>
     <module>common</module>
-    <module>mongo-pipeline</module>
     <module>postgres-loader</module>
+    <module>mongo-pipeline</module>
     <module>reporting</module>
-      <module>Main</module>
+    <module>Main</module>
+
+    <module>Pig-pipeline</module>
+    <module>hive-pipeline</module>
+    <module>map-reduce</module>
   </modules>
 
   <properties>

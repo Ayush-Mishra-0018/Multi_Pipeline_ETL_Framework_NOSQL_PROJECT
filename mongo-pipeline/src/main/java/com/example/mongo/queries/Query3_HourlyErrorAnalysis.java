@@ -12,8 +12,7 @@ import java.util.concurrent.*;
 
 public class Query3_HourlyErrorAnalysis {
 
-    public static void run(MongoDatabase database) { // runid
-
+    public static void run(MongoDatabase database) {
         // metadata
         String pipelineName = "mongodb";
         String runId = UUID.randomUUID().toString();
