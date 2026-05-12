@@ -76,11 +76,6 @@ public class Query2_TopResources {
                 AggregateIterable<Document> result =
                         collection.aggregate(Arrays.asList(
 
-                                new Document("$match",
-                                        new Document("path",
-                                                new Document("$ne", "/"))
-                                ),
-
                                 new Document("$group",
                                         new Document("_id", "$path")
                                                 .append("requestCount",
