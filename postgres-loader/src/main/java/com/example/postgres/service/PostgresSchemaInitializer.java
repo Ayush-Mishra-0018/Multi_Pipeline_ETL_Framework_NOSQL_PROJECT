@@ -261,7 +261,7 @@ public final class PostgresSchemaInitializer {
                     "CREATE TABLE IF NOT EXISTS malformed_record_summary (" +
                             "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
                             "batch_id INTEGER NOT NULL," +
-                            "record VARCHAR(1024)" +
+                            "record VARCHAR(4096)" +
                             ")"
             );
         }
