@@ -12,8 +12,7 @@ import java.util.concurrent.*;
 
 public class Query3_HourlyErrorAnalysis {
 
-    public static void run(MongoDatabase database) { // runid
-
+    public static void run(MongoDatabase database) {
         // metadata
         String pipelineName = "mongodb";
         String runId = UUID.randomUUID().toString();
@@ -263,32 +262,5 @@ public class Query3_HourlyErrorAnalysis {
                 "query_3",
                 rows
         );
-
-        // =========================================
-        // PRINT OUTPUT
-        // =========================================
-
-        System.out.printf(
-                "%-12s | %-8s | %-20s | %-20s | %-12s | %-20s | %-10s%n",
-                "log_date", "log_hour", "error_request_count",
-                "total_request_count", "error_rate",
-                "distinct_error_hosts", "batches"
-        );
-
-        System.out.println("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
-
-        for (Map<String, Object> row : rows) {
-
-            System.out.printf(
-                    "%-12s | %-8d | %-20d | %-20d | %-12.2f | %-20d | %-10s | %-36s | %-10s%n",
-                    row.get("log_date"),
-                    row.get("log_hour"),
-                    row.get("error_request_count"),
-                    row.get("total_request_count"),
-                    row.get("error_rate"),
-                    row.get("distinct_error_hosts"),
-                    row.get("batch_id")
-            );
-        }
     }
 }

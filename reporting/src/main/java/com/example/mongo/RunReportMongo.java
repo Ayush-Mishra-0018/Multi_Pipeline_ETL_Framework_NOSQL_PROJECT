@@ -66,117 +66,14 @@ public class RunReportMongo {
                     meta
             );;
 
-            // =========================================
-            // HEADER
-            // =========================================
 
-            System.out.println(
-                    "\n=============================================================="
-            );
 
-            System.out.println(
-                    "         FINAL REPORTING DASHBOARD - MONGODB"
-            );
+//            PostgresReportService.printStoredResults(
+//
+//                    "mongodb",
+//                    queries
+//            );
 
-            System.out.println(
-                    "=============================================================="
-            );
-
-            // =========================================
-            // POSTGRES RESULTS
-            // =========================================
-
-            System.out.println(
-                    "\n=============================================================="
-            );
-
-            System.out.println(
-                    "POSTGRES STORED RESULTS"
-            );
-
-            System.out.println(
-                    "=============================================================="
-            );
-
-            PostgresReportService.printStoredResults(
-
-                    "mongodb",
-                    queries
-            );
-            // to print global call the function again.
-
-            // =========================================
-            // EXECUTION METADATA
-            // =========================================
-
-            System.out.println(
-                    "\nEXECUTION METADATA"
-            );
-
-            System.out.println(
-                    "--------------------------------------------------------------"
-            );
-
-            System.out.printf(
-                    "%-25s : %s%n",
-                    "Pipeline",
-                    "MongoDB"
-            );
-
-            System.out.printf(
-                    "%-25s : %s%n",
-                    "Executed Queries",
-                    queries
-            );
-
-            System.out.printf(
-                    "%-25s : %d%n",
-                    "Batch Size",
-                    batchSize
-            );
-
-            if (meta != null) {
-
-                System.out.printf(
-                        "%-25s : %s%n",
-                        "Average Batch Size",
-                        meta.get("avgBatchSize")
-                );
-            }
-
-            System.out.printf(
-                    "%-25s : %d ms%n",
-                    "Pipeline Runtime",
-                    pipelineRuntime
-            );
-
-            System.out.printf(
-                    "%-25s : %d ms%n",
-                    "Query Runtime",
-                    queryRuntime
-            );
-
-            System.out.printf(
-                    "%-25s : %d ms%n",
-                    "Total Runtime",
-                    totalRuntime
-            );
-
-            // =========================================
-            // DONE
-            // =========================================
-
-            System.out.println(
-                    "\n=============================================================="
-            );
-
-            System.out.println(
-                    "REPORT COMPLETED SUCCESSFULLY"
-            );
-
-            System.out.println(
-                    "=============================================================="
-            );
 
         } catch (Exception e) {
 
