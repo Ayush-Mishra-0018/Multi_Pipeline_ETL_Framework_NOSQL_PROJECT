@@ -1,6 +1,7 @@
 package com.example.util;
 
 import com.example.model.ParsedLog;
+import com.example.postgres.service.PostgresInsertService;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -34,6 +35,9 @@ public final class LogParser {
             Matcher matcher = LOG_PATTERN.matcher(line);
 
             if (!matcher.matches()) {
+                System.out.println("invalid log line: " + line + "\n\n\n\n\n");
+                //  NOW WRITE THE LINE AND BATCH ID INTO POSTGRES INSTEAD INTO THE MALFORMED TABLE
+                PostgresInsertService.insertMalformed(line, batchId, "mongodb");
                 return malformed(log);
             }
 

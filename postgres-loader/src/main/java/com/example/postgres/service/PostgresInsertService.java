@@ -42,12 +42,6 @@ public final class PostgresInsertService {
 
             conn.setAutoCommit(false);
 
-//            Statement st =
-//                    conn.createStatement();
-//
-//            st.executeUpdate(
-//                    "TRUNCATE TABLE " + tableName // now this logic will be handled by init file
-//            );
 
             if (rows == null || rows.isEmpty()) {
 
@@ -315,6 +309,29 @@ public final class PostgresInsertService {
 
         } catch (Exception e) {
 
+            e.printStackTrace();
+        }
+    }
+
+    public static void insertMalformed(String line, int batch_id, String databaseName) {
+        System.out.println("Inserting malformed data into database " + databaseName);
+        System.out.println("\n\n\n\n\n\nFunction called\n\n");
+        String url = BASE_URL + "/" + databaseName;
+
+        String query =
+                "INSERT INTO malformed_record_summary (batch_id, record) VALUES (?, ?)";
+
+        try (
+                Connection con = DriverManager.getConnection(url, USER, PASSWORD);
+                PreparedStatement ps = con.prepareStatement(query)
+        ) {
+
+            ps.setInt(1, batch_id);
+            ps.setString(2, line);
+
+            ps.executeUpdate();
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
