@@ -1,6 +1,8 @@
 package com.example.mongo;
 
 import com.example.config.ConfigReader;
+import com.example.model.MalformedRecord;
+import com.example.model.PipelineExecutionResult;
 import com.example.mongo.dataSetup.MongoDataSetupExecutor;
 import com.example.mongo.runner.QueryRunner;
 import com.example.reporting.postgres.PostgresReportService;
@@ -22,8 +24,14 @@ public class RunReportMongo {
             // RUN PIPELINE
             // =========================================
 
-            long pipelineRuntime =
+            PipelineExecutionResult executionResult =
                     MongoDataSetupExecutor.execute();
+
+            long pipelineRuntime =
+                    executionResult.getExecutionTime();
+
+            List<MalformedRecord> malformedRecords =
+                    executionResult.getMalformedRecords();
 
             // =========================================
             // RUN QUERIES
@@ -64,7 +72,8 @@ public class RunReportMongo {
                     queries,
                     totalRuntime,
                     meta
-            );;
+            );
+            PostgresInsertService.insertMalformed("mongodb",malformedRecords);
 
 
 

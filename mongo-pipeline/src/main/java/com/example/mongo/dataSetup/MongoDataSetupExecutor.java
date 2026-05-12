@@ -2,10 +2,13 @@ package com.example.mongo.dataSetup;
 
 import com.example.config.ConfigReader;
 import com.example.model.BatchResult;
+import com.example.model.MalformedRecord;
+import com.example.model.PipelineExecutionResult;
 import com.example.mongo.service.MongoInsertService;
 import com.example.util.BatchProcessor;
 import com.example.util.BatchReader;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class MongoDataSetupExecutor {
@@ -13,7 +16,7 @@ public final class MongoDataSetupExecutor {
     private MongoDataSetupExecutor() {
     }
 
-    public static long execute() {
+    public static PipelineExecutionResult execute() {
 
         long startTime =
                 System.currentTimeMillis();
@@ -52,6 +55,13 @@ public final class MongoDataSetupExecutor {
         long totalValid = 0;
         int totalBatches = 0;
 
+        // =====================================
+        // GLOBAL MALFORMED RECORDS LIST
+        // =====================================
+
+        List<MalformedRecord> malformedRecords =
+                new ArrayList<>();
+
         try {
 
             for (String filePath : filePaths) {
@@ -81,6 +91,14 @@ public final class MongoDataSetupExecutor {
                                         rawLines,
                                         batchId
                                 );
+
+                        // =====================================
+                        // COLLECT MALFORMED RECORDS
+                        // =====================================
+
+                        malformedRecords.addAll(
+                                result.getMalformedLogs()
+                        );
 
                         // =====================================
                         // INSERT INTO MONGO
@@ -124,6 +142,15 @@ public final class MongoDataSetupExecutor {
             }
 
             // =====================================
+            // PRINT MALFORMED RECORD SUMMARY
+            // =====================================
+
+            System.out.println(
+                    "\nTotal malformed records: " +
+                            malformedRecords.size()
+            );
+
+            // =====================================
             // STORE FINAL SUMMARY
             // =====================================
 
@@ -145,20 +172,26 @@ public final class MongoDataSetupExecutor {
                     totalMalformed,
                     totalBatches,
                     avgBatchSize,
-                    totalTime // runid
+                    totalTime
             );
 
             System.out.println(
                     "\nMongo pipeline execution completed."
             );
 
-            return totalTime;
+            return PipelineExecutionResult.builder()
+                    .executionTime(totalTime)
+                    .malformedRecords(malformedRecords)
+                    .build();
 
         } catch (Exception e) {
 
             e.printStackTrace();
         }
 
-        return 0;
+        return PipelineExecutionResult.builder()
+                .executionTime(0)
+                .malformedRecords(new ArrayList<>())
+                .build();
     }
 }

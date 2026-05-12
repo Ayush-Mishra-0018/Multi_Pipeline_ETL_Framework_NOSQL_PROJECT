@@ -2,6 +2,7 @@ package com.example.postgres.service;
 
 import com.example.config.ConfigReader;
 
+import com.example.model.MalformedRecord;
 import org.bson.Document;
 
 import java.sql.*;
@@ -313,25 +314,61 @@ public final class PostgresInsertService {
         }
     }
 
-    public static void insertMalformed(String line, int batch_id, String databaseName) {
-        System.out.println("Inserting malformed data into database " + databaseName);
-        System.out.println("\n\n\n\n\n\nFunction called\n\n");
-        String url = BASE_URL + "/" + databaseName;
+    public static void insertMalformed(
+            String databaseName,
+            List<MalformedRecord> malformedRecords
+    ) {
+
+        System.out.println(
+                "Inserting malformed data into database " +
+                        databaseName
+        );
+
+        String url =
+                BASE_URL + "/" + databaseName;
 
         String query =
-                "INSERT INTO malformed_record_summary (batch_id, record) VALUES (?, ?)";
+                "INSERT INTO malformed_record_summary " +
+                        "(batch_id, record) " +
+                        "VALUES (?, ?)";
 
         try (
-                Connection con = DriverManager.getConnection(url, USER, PASSWORD);
-                PreparedStatement ps = con.prepareStatement(query)
+                Connection con =
+                        DriverManager.getConnection(
+                                url,
+                                USER,
+                                PASSWORD
+                        );
+
+                PreparedStatement ps =
+                        con.prepareStatement(query)
         ) {
 
-            ps.setInt(1, batch_id);
-            ps.setString(2, line);
+            for (MalformedRecord record : malformedRecords) {
 
-            ps.executeUpdate();
+                ps.setInt(
+                        1,
+                        record.getBatchId()
+                );
+
+                ps.setString(
+                        2,
+                        record.getLine()
+                );
+
+                ps.addBatch();
+            }
+
+            ps.executeBatch();
+
+            System.out.println(
+                    "Inserted " +
+                            malformedRecords.size() +
+                            " malformed records."
+            );
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
     }

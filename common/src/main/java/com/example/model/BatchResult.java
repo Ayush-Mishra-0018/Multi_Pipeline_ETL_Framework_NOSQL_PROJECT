@@ -16,8 +16,12 @@ public class BatchResult {
     private int batchId;
 
     private int totalRecords;
+
     private int malformedRecords;
+
     private int validRecords;
 
     private List<ParsedLog> parsedLogs;
+
+    private List<MalformedRecord> malformedLogs;
 }
