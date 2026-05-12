@@ -173,11 +173,16 @@ public final class PostgresSchemaInitializer {
                     "SELECT * FROM query_3 LIMIT 1"
             );
 
+            st.executeQuery(
+                    "SELECT * FROM malformed_record_summary LIMIT 1"
+            );
+
             st.executeUpdate(
                     "TRUNCATE TABLE " +
                             "query_1, " +
                             "query_2, " +
-                            "query_3 " +
+                            "query_3, " +
+                            "malformed_record_summary " +
                             "RESTART IDENTITY"
             );
 
@@ -248,6 +253,15 @@ public final class PostgresSchemaInitializer {
                             "error_rate DOUBLE PRECISION," +
                             "distinct_error_hosts INT," +
                             "batch_id TEXT" +
+                            ")"
+            );
+
+
+            st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS malformed_record_summary (" +
+                            "id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY," +
+                            "batch_id INTEGER NOT NULL," +
+                            "record VARCHAR(1024)" +
                             ")"
             );
         }
