@@ -12,7 +12,7 @@ import java.util.List;
 public final class PigInsertService {
 
     private static final String PIG_DATA_DIR = "./pig_data";
-    private static final String PARSED_LOGS_FILE = PIG_DATA_DIR + "/parsed_logs.tsv";
+    private static final String PARSED_LOGS_FILE = PIG_DATA_DIR + "/parsed_logs";
 
     private PigInsertService() {
     }
@@ -32,14 +32,15 @@ public final class PigInsertService {
         System.out.println("Pig data directory cleared and recreated: " + PIG_DATA_DIR);
     }
 
-    public static void insertParsedLogs(BatchResult result) {
+    public static void insertParsedLogs(BatchResult result, int batch_id) {
         List<ParsedLog> logs = result.getParsedLogs();
         if (logs.isEmpty()) {
             return;
         }
 
-        File file = new File(PARSED_LOGS_FILE);
+        File file = new File(PARSED_LOGS_FILE + "_batch_" + batch_id + ".tsv");
         boolean isNewFile = !file.exists();
+        System.out.println("File" + (isNewFile ? " (New)" : "(Old)"));
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) {
             for (ParsedLog log : logs) {

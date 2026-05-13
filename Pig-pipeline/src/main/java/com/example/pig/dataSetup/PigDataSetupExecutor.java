@@ -64,7 +64,7 @@ public final class PigDataSetupExecutor {
 
                         malformedRecords.addAll(result.getMalformedLogs());
 
-                        PigInsertService.insertParsedLogs(result);
+                        PigInsertService.insertParsedLogs(result, batchId);
 
                         totalRecordsProcessed += result.getTotalRecords();
                         totalMalformed += result.getMalformedRecords();
