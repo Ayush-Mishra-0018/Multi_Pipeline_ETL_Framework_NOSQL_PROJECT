@@ -1,8 +1,5 @@
 package com.example.pig.service;
 
-import com.example.model.BatchResult;
-import com.example.model.ParsedLog;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -12,55 +9,56 @@ import java.util.List;
 public final class PigInsertService {
 
     private static final String PIG_DATA_DIR = "./pig_data";
-    private static final String PARSED_LOGS_FILE = PIG_DATA_DIR + "/parsed_logs";
+    private static final String RAW_DIR = PIG_DATA_DIR + "/raw";
 
     private PigInsertService() {
     }
 
     public static void clearData() {
-        File dir = new File(PIG_DATA_DIR);
+        deleteDirectory(new File(PIG_DATA_DIR));
+        new File(RAW_DIR).mkdirs();
+        System.out.println("Pig data directory cleared and recreated: " + PIG_DATA_DIR);
+    }
+
+    private static void deleteDirectory(File dir) {
         if (dir.exists()) {
             File[] files = dir.listFiles();
             if (files != null) {
                 for (File file : files) {
-                    file.delete();
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    } else {
+                        file.delete();
+                    }
                 }
             }
             dir.delete();
         }
-        dir.mkdirs();
-        System.out.println("Pig data directory cleared and recreated: " + PIG_DATA_DIR);
     }
 
-    public static void insertParsedLogs(BatchResult result, int batch_id) {
-        List<ParsedLog> logs = result.getParsedLogs();
-        if (logs.isEmpty()) {
-            return;
+    public static String writeRawBatch(List<String> rawLines, int batchId) {
+        if (rawLines.isEmpty()) {
+            return null;
         }
 
-        File file = new File(PARSED_LOGS_FILE + "_batch_" + batch_id + ".tsv");
-        boolean isNewFile = !file.exists();
-        System.out.println("File" + (isNewFile ? " (New)" : "(Old)"));
+        File rawDir = new File(RAW_DIR);
+        if (!rawDir.exists()) {
+            rawDir.mkdirs();
+        }
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file, true))) {
-            for (ParsedLog log : logs) {
-                if (!log.isMalformed()) {
-                    writer.write(String.format("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%d\t%d\n",
-                            log.getHost(),
-                            log.getRawTimestamp(),
-                            log.getDate(),
-                            log.getHour(),
-                            log.getMethod(),
-                            log.getPath(),
-                            log.getProtocol(),
-                            log.getStatus(),
-                            log.getBytes(),
-                            log.getBatchId()
-                    ));
-                }
+        String filePath = RAW_DIR + "/batch_" + batchId + ".txt";
+        File file = new File(filePath);
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (String line : rawLines) {
+                writer.write(line);
+                writer.newLine();
             }
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
+        
+        return filePath;
     }
 }
