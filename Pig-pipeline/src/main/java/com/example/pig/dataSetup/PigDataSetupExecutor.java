@@ -145,7 +145,7 @@ public final class PigDataSetupExecutor {
     private static void executePigScript(String inputFile, String validOutput, String malformedOutput, int batchId) throws Exception {
         String pigCommand = System.getenv("PIG_HOME") != null 
                 ? System.getenv("PIG_HOME") + "/bin/pig" 
-                : "/home/santhosh/.pig-0.17.0/bin/pig";
+                : ConfigReader.get("pig.executable.path", "pig");
         
         ProcessBuilder pb = new ProcessBuilder(
                 pigCommand,
