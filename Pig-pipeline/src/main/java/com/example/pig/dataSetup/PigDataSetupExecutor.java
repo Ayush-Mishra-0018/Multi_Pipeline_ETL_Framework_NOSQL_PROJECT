@@ -8,6 +8,7 @@ import com.example.pig.service.PigInsertService;
 import com.example.pig.util.BatchProcessor;
 import com.example.pig.util.BatchReader;
 import com.example.postgres.service.PostgresInsertService;
+import com.example.postgres.service.PostgresSchemaInitializer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,8 @@ public final class PigDataSetupExecutor {
     public static PipelineExecutionResult execute() {
 
         long startTime = System.currentTimeMillis();
+
+        PostgresSchemaInitializer.initialize("pig");
 
         boolean shouldClear = Boolean.parseBoolean(
                 ConfigReader.get("mongo.clear.before.run", "true")
@@ -97,7 +100,7 @@ public final class PigDataSetupExecutor {
                     metadata
             );
 
-            PostgresInsertService.insertMalformed("global_db", malformedRecords);
+            PostgresInsertService.insertMalformed("pig", malformedRecords);
 
             System.out.println("\nPig pipeline execution completed.");
 
