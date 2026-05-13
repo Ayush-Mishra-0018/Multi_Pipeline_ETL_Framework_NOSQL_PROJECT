@@ -1,4 +1,4 @@
-package com.example.reporting.mongo;
+package com.example.mongo;
 
 import com.example.mongo.service.MongoConnection;
 import com.mongodb.client.MongoCollection;

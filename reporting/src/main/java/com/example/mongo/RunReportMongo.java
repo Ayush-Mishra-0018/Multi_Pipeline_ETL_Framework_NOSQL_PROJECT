@@ -57,7 +57,7 @@ public class RunReportMongo {
             // =========================================
 
             Document meta =
-                    com.example.reporting.mongo.MongoReportService
+                    com.example.mongo.MongoReportService
                             .getLatestPipelineMetadata();
             // #########################
             // #########################
