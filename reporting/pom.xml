@@ -34,6 +34,27 @@
             <version>1.0-SNAPSHOT</version>
         </dependency>
 
+        <!-- Hive pipeline (for RunReportHive) -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>hive-pipeline</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Pig pipeline (for RunReportPig) -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>Pig-pipeline</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- MapReduce pipeline (for RunReportMapReduce) -->
+        <dependency>
+            <groupId>com.example</groupId>
+            <artifactId>map-reduce</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+
     </dependencies>
 
 </project>
