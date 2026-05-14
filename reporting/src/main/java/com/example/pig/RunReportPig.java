@@ -14,6 +14,7 @@ public class RunReportPig {
         
         System.out.println("Pig data setup completed in " + executionResult.getExecutionTime() + " ms");
         
-        // Query execution goes here
+        // Query execution
+        com.example.pig.runner.PigQueryRunner.runQueries(queries);
     }
 }
