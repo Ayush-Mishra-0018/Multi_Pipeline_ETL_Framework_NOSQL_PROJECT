@@ -6,6 +6,7 @@ import com.example.mapReduce.service.StatsReaderService;
 import com.example.model.BatchStatistics;
 import com.example.model.MalformedRecord;
 import com.example.model.PipelineExecutionResult;
+import com.example.postgres.service.PostgresInsertService;
 
 import java.util.List;
 
@@ -126,7 +127,20 @@ public class RunReportMapReduce {
                     "\n================================="
             );
 
-            System.out.println("\n\n Naveed please do your work now\n\n");
+            System.out.println("\n\n Updated the running\n\n");
+
+            PostgresInsertService.insertGlobalMetadata_MapReduce(
+                    "MapReduce",
+                    queries,
+                    stats.getTotalTime(),
+                    stats,
+                    (int) result.getExecutionTime()
+            );
+
+            PostgresInsertService.insertMalformed(
+                    "mapreduce",
+                    malformedRecords
+            );
 
         } catch (Exception e) {
 

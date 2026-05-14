@@ -36,6 +36,7 @@ public final class BatchProcessingDriver {
 
             Configuration conf = new Configuration();
 
+
             conf.addResource(new Path(ConfigReader.get("hadoop.core.site")));
             conf.addResource(new Path(ConfigReader.get("hadoop.hdfs.site")));
             conf.addResource(new Path(ConfigReader.get("hadoop.mapred.site")));
@@ -51,9 +52,9 @@ public final class BatchProcessingDriver {
             conf.set("yarn.resourcemanager.resource-tracker.address",
                     ConfigReader.get("yarn.resourcemanager.resource-tracker.address"));
 
-            conf.set("mapreduce.job.jar",
-                    "/Users/harshsinha/Desktop/iiitbSemester/sem6/noSql/nosql-etl-project/map-reduce/target/map-reduce-1.0-SNAPSHOT.jar"
-            );
+//            conf.set("mapreduce.job.jar",
+//                    "/Users/harshsinha/Desktop/iiitbSemester/sem6/noSql/nosql-etl-project/map-reduce/target/map-reduce-1.0-SNAPSHOT.jar"
+//            );
 
             conf.set("fs.hdfs.impl",
                     org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
@@ -86,6 +87,8 @@ public final class BatchProcessingDriver {
             // =====================================
             // OUTPUT TYPES
             // =====================================
+            job.setMapOutputKeyClass(NullWritable.class);
+            job.setMapOutputValueClass(Text.class);
 
             job.setOutputKeyClass(NullWritable.class);
             job.setOutputValueClass(Text.class);
@@ -142,6 +145,18 @@ public final class BatchProcessingDriver {
 
             boolean success = job.waitForCompletion(true);
 
+            System.out.println("JOB SUCCESS = " + success);
+
+            if (!success) {
+
+                System.out.println(
+                        "FAILURE INFO: " +
+                                job.getStatus().getFailureInfo()
+                );
+
+                throw new RuntimeException("Job failed");
+            }
+
             // =====================================
             // WRITE STATS
             // =====================================
@@ -195,10 +210,10 @@ public final class BatchProcessingDriver {
             return success;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
-        return false;
+//        return false;
     }
 
     // =====================================
