@@ -16,9 +16,8 @@ public class Query1_DailyTraffic_Global {
 
     public static void run(MongoDatabase database) {
 
-        String pipelineName = "mongodb";
         String runId = UUID.randomUUID().toString();
-        java.sql.Timestamp executedAt = java.sql.Timestamp.from(Instant.now()); // ✅ FIXED
+        java.sql.Timestamp executedAt = java.sql.Timestamp.from(Instant.now());
 
         List<String> batchCollections = new ArrayList<>();
 

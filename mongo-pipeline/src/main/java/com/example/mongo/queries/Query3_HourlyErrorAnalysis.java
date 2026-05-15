@@ -14,8 +14,6 @@ public class Query3_HourlyErrorAnalysis {
 
     public static void run(MongoDatabase database) {
         // metadata
-        String pipelineName = "mongodb";
-        String runId = UUID.randomUUID().toString();
         java.sql.Timestamp executedAt =
                 java.sql.Timestamp.from(Instant.now());
 

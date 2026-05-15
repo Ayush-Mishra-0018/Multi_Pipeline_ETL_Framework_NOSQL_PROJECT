@@ -494,7 +494,6 @@ public final class PostgresInsertService {
             String databaseName,
             List<MalformedRecord> malformedRecords
     ) {
-        PostgresSchemaInitializer.initialize(databaseName);
         System.out.println(
                 "Inserting malformed data into database " +
                         databaseName

@@ -1,6 +1,7 @@
 package com.example.mapReduce;
 
 import com.example.mapReduce.dataSetup.MapReduceDataSetupExecutor;
+import com.example.mapReduce.runner.QueryRunner;
 import com.example.mapReduce.service.StatsReaderService;
 
 import com.example.model.BatchStatistics;
@@ -127,12 +128,16 @@ public class RunReportMapReduce {
                     "\n================================="
             );
 
-            System.out.println("\n\n Updated the running\n\n");
+            System.out.println("\n\nUpdated the running by fixing 2 and 3 query\n\n");
+
+            long queryRuntime = QueryRunner.runQueries(queries);
+
+            long totalRuntime = queryRuntime + stats.getTotalTime();
 
             PostgresInsertService.insertGlobalMetadata_MapReduce(
                     "MapReduce",
                     queries,
-                    stats.getTotalTime(),
+                    totalRuntime,
                     stats,
                     (int) result.getExecutionTime()
             );
@@ -141,6 +146,8 @@ public class RunReportMapReduce {
                     "mapreduce",
                     malformedRecords
             );
+
+
 
         } catch (Exception e) {
 
