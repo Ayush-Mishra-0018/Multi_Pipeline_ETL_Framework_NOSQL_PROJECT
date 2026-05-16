@@ -26,28 +26,11 @@ public class Query2_TopResources {
                 "\n\n Top Resources Global \n\n"
         );
 
-        /*
-            FINAL AGGREGATED DATA
-
-            key:
-                resource_path
-         */
-
-        Map<String, Map<String, Object>> finalMap =
-                new HashMap<>();
-
-        /*
-            TRACK BATCH IDS
-         */
-
-        Map<String, Set<Integer>> batchTracker =
-                new HashMap<>();
-
         try {
 
-            // =====================================
-            // HADOOP CONFIGURATION
-            // =====================================
+            // =====================================================
+            // HADOOP CONFIG
+            // =====================================================
 
             Configuration conf =
                     new Configuration();
@@ -84,41 +67,23 @@ public class Query2_TopResources {
                     )
             );
 
-            // =====================================
-            // CREATE JOB
-            // =====================================
-
-            conf.set(
-
-                    "mapreduce.job.jar",
-
-                    ConfigReader.get("mapreduce.job.jar")
-
-            );
-
-// =====================================
-
-// CREATE JOB
-
-// =====================================
+            // =====================================================
+            // JOB
+            // =====================================================
 
             Job job =
-
                     Job.getInstance(
-
                             conf,
-
                             "Query2 Top Resources"
-
                     );
 
             job.setJarByClass(
                     Query2_TopResources.class
             );
 
-            // =====================================
-            // MAPPER + REDUCER
-            // =====================================
+            // =====================================================
+            // MAPPER / REDUCER
+            // =====================================================
 
             job.setMapperClass(
                     Query2Mapper.class
@@ -128,9 +93,14 @@ public class Query2_TopResources {
                     Query2Reducer.class
             );
 
-            // =====================================
-            // OUTPUT TYPES
-            // =====================================
+            // IMPORTANT
+            // ensures global aggregation
+
+            job.setNumReduceTasks(1);
+
+            // =====================================================
+            // TYPES
+            // =====================================================
 
             job.setMapOutputKeyClass(
                     Text.class
@@ -148,9 +118,9 @@ public class Query2_TopResources {
                     Text.class
             );
 
-            // =====================================
+            // =====================================================
             // INPUT / OUTPUT
-            // =====================================
+            // =====================================================
 
             String inputPath =
                     ConfigReader.get(
@@ -168,9 +138,7 @@ public class Query2_TopResources {
             FileSystem fs =
                     FileSystem.get(conf);
 
-            // =====================================
-            // DELETE OLD OUTPUT
-            // =====================================
+            // delete previous output
 
             if (fs.exists(outputDir)) {
 
@@ -187,9 +155,9 @@ public class Query2_TopResources {
                     outputDir
             );
 
-            // =====================================
+            // =====================================================
             // RUN JOB
-            // =====================================
+            // =====================================================
 
             boolean success =
                     job.waitForCompletion(true);
@@ -197,13 +165,16 @@ public class Query2_TopResources {
             if (!success) {
 
                 throw new RuntimeException(
-                        "Query2 MapReduce job failed"
+                        "Query2 failed"
                 );
             }
 
-            // =====================================
-            // READ REDUCER OUTPUT
-            // =====================================
+            // =====================================================
+            // READ OUTPUT
+            // =====================================================
+
+            List<Map<String, Object>> rows =
+                    new ArrayList<>();
 
             RemoteIterator<LocatedFileStatus> files =
                     fs.listFiles(outputDir, false);
@@ -215,10 +186,6 @@ public class Query2_TopResources {
 
                 String fileName =
                         file.getPath().getName();
-
-                System.out.println(
-                        "Found file: " + fileName
-                );
 
                 if (!fileName.startsWith("part-")) {
                     continue;
@@ -238,81 +205,136 @@ public class Query2_TopResources {
                     /*
                         FORMAT:
 
-                        path,count,totalBytes,distinctHosts,batches
+                        path \t count \t totalBytes
+                        \t distinctHosts \t batches
                      */
 
                     String[] parts =
                             line.split("\\t");
 
-                    if (parts.length < 5) {
+                    if (parts.length != 5) {
                         continue;
                     }
 
-                    String path =
-                            parts[0];
+                    Map<String, Object> row =
+                            new LinkedHashMap<>();
 
-                    int count =
-                            Integer.parseInt(parts[1]);
-
-                    long totalBytes =
-                            Long.parseLong(parts[2]);
-
-                    int distinctHosts =
-                            Integer.parseInt(parts[3]);
-
-                    String batchString =
-                            parts[4];
-
-                    Map<String, Object> rowData =
-                            new HashMap<>();
-
-                    rowData.put(
+                    row.put(
                             "resource_path",
-                            path
+                            parts[0]
                     );
 
-                    rowData.put(
+                    row.put(
                             "request_count",
-                            count
+                            Integer.parseInt(parts[1])
                     );
 
-                    rowData.put(
+                    row.put(
                             "total_bytes",
-                            totalBytes
+                            Long.parseLong(parts[2])
                     );
 
-                    rowData.put(
+                    row.put(
                             "distinct_hosts",
-                            distinctHosts
+                            Integer.parseInt(parts[3])
                     );
 
-                    finalMap.put(
-                            path,
-                            rowData
+                    row.put(
+                            "batch_id",
+                            parts[4]
                     );
 
-                    // =====================================
-                    // TRACK BATCH IDS
-                    // =====================================
-
-                    Set<Integer> batches =
-                            new HashSet<>();
-
-                    for (String s :
-                            batchString.split("\\+")) {
-
-                        batches.add(
-                                Integer.parseInt(s)
-                        );
-                    }
-
-                    batchTracker.put(
-                            path,
-                            batches
-                    );
+                    rows.add(row);
                 }
 
                 br.close();
+            }
+
+            // =====================================================
+            // GLOBAL SORT
+            // =====================================================
+
+            rows.sort(
+                    Comparator.comparing(
+                                    (Map<String, Object> d) ->
+                                            (Integer) d.get("request_count")
+                            )
+                            .reversed()
+                            .thenComparing(
+                                    d ->
+                                            (String) d.get("resource_path")
+                            )
+            );
+
+            // =====================================================
+            // TOP 20
+            // =====================================================
+
+            if (rows.size() > 20) {
+
+                rows =
+                        new ArrayList<>(
+                                rows.subList(0, 20)
+                        );
+            }
+
+            // =====================================================
+            // ASCENDING DISPLAY
+            // =====================================================
+
+            rows.sort(
+                    Comparator.comparing(
+                                    (Map<String, Object> d) ->
+                                            (Integer) d.get("request_count")
+                            )
+                            .thenComparing(
+                                    d ->
+                                            (String) d.get("resource_path")
+                            )
+            );
+
+            // =====================================================
+            // INSERT POSTGRES
+            // =====================================================
+
+            System.out.println(
+                    "Rows to insert: "
+                            + rows.size()
+            );
+
+            PostgresInsertService.Insert(
+                    "mapreduce",
+                    "query_2",
+                    rows
+            );
+
+            // =====================================================
+            // PRINT
+            // =====================================================
+
+            System.out.printf(
+                    "%-50s | %-14s | %-14s | %-15s | %-10s%n",
+                    "resource_path",
+                    "request_count",
+                    "total_bytes",
+                    "distinct_hosts",
+                    "batches"
+            );
+
+            System.out.println(
+                    "----------------------------------------------------------------------------------------------------------------------------------------------------------------"
+            );
+
+            for (Map<String, Object> row : rows) {
+
+                System.out.printf(
+                        "%-50s | %-14d | %-14d | %-15d | %-10s%n",
+                        row.get("resource_path"),
+                        row.get("request_count"),
+                        row.get("total_bytes"),
+                        row.get("distinct_hosts"),
+                        row.get("batch_id")
+                );
             }
 
         } catch (Exception e) {
@@ -321,166 +343,11 @@ public class Query2_TopResources {
 
             throw new RuntimeException(e);
         }
-
-        // =====================================
-        // SORT DESCENDING
-        // =====================================
-
-        List<Map<String, Object>> output =
-                new ArrayList<>(
-                        finalMap.values()
-                );
-
-        output.sort(
-                Comparator.comparing(
-                                (Map<String, Object> d) ->
-                                        (Integer) d.get("request_count")
-                        )
-                        .reversed()
-                        .thenComparing(
-                                d ->
-                                        (String) d.get("resource_path")
-                        )
-        );
-
-        // =====================================
-        // TOP 20
-        // =====================================
-
-        if (output.size() > 20) {
-
-            output =
-                    new ArrayList<>(
-                            output.subList(0, 20)
-                    );
-        }
-
-        // =====================================
-        // SORT ASCENDING FOR DISPLAY
-        // =====================================
-
-        output.sort(
-                Comparator.comparing(
-                                (Map<String, Object> d) ->
-                                        (Integer) d.get("request_count")
-                        )
-                        .thenComparing(
-                                d ->
-                                        (String) d.get("resource_path")
-                        )
-        );
-
-        // =====================================
-        // BUILD FINAL ROWS
-        // =====================================
-
-        List<Map<String, Object>> rows =
-                new ArrayList<>();
-
-        for (Map<String, Object> doc : output) {
-
-            String path =
-                    (String) doc.get("resource_path");
-
-            Set<Integer> batches =
-                    batchTracker.get(path);
-
-            List<Integer> sortedBatches =
-                    new ArrayList<>(batches);
-
-            Collections.sort(sortedBatches);
-
-            String batchString =
-                    String.join(
-                            "+",
-                            sortedBatches.stream()
-                                    .map(String::valueOf)
-                                    .toArray(String[]::new)
-                    );
-
-            Map<String, Object> row =
-                    new LinkedHashMap<>();
-
-            row.put(
-                    "resource_path",
-                    path
-            );
-
-            row.put(
-                    "request_count",
-                    doc.get("request_count")
-            );
-
-            row.put(
-                    "total_bytes",
-                    doc.get("total_bytes")
-            );
-
-            row.put(
-                    "distinct_hosts",
-                    doc.get("distinct_hosts")
-            );
-
-            row.put(
-                    "batch_id",
-                    batchString
-            );
-
-            rows.add(row);
-        }
-
-        // =====================================
-        // DEBUG
-        // =====================================
-
-        System.out.println(
-                "Rows to insert: "
-                        + rows.size()
-        );
-
-        // =====================================
-        // INSERT INTO POSTGRES
-        // =====================================
-
-        PostgresInsertService.Insert(
-                "mapreduce",
-                "query_2",
-                rows
-        );
-
-        // =====================================
-        // PRINT OUTPUT
-        // =====================================
-
-        System.out.printf(
-                "%-50s | %-14s | %-14s | %-15s | %-10s%n",
-                "resource_path",
-                "request_count",
-                "total_bytes",
-                "distinct_hosts",
-                "batches"
-        );
-
-        System.out.println(
-                "----------------------------------------------------------------------------------------------------------------------------------------------------------------"
-        );
-
-        for (Map<String, Object> row : rows) {
-
-            System.out.printf(
-                    "%-50s | %-14d | %-14d | %-15d | %-10s%n",
-                    row.get("resource_path"),
-                    row.get("request_count"),
-                    row.get("total_bytes"),
-                    row.get("distinct_hosts"),
-                    row.get("batch_id")
-            );
-        }
     }
 
-    // =====================================
+    // =====================================================
     // MAPPER
-    // =====================================
+    // =====================================================
 
     public static class Query2Mapper
             extends Mapper<
@@ -508,13 +375,16 @@ public class Query2_TopResources {
                 /*
                     FILTERED FORMAT:
 
-                    host	rawTimestamp	date	hour	method	path	protocol	status	bytes
+                    host	rawTimestamp	date	hour	method
+                    path	protocol	status	bytes
                  */
 
                 String[] parts =
-                        line.split("\\t");
+                        line.split("\\t", -1);
 
-                if (parts.length < 9) {
+                // strict validation
+
+                if (parts.length != 9) {
 
                     System.out.println(
                             "Skipping malformed line: "
@@ -524,9 +394,40 @@ public class Query2_TopResources {
                     return;
                 }
 
-                // =====================================
-                // GET BATCH ID
-                // =====================================
+                String host =
+                        parts[0].trim();
+
+                String path =
+                        parts[5].trim();
+
+                if (path.isEmpty()) {
+                    return;
+                }
+
+                long bytes = 0;
+
+                String byteField =
+                        parts[8].trim();
+
+                if (!byteField.equals("-")
+                        && !byteField.isEmpty()) {
+
+                    try {
+
+                        bytes =
+                                Long.parseLong(
+                                        byteField
+                                );
+
+                    } catch (Exception e) {
+
+                        return;
+                    }
+                }
+
+                // =====================================================
+                // BATCH ID FROM FILE NAME
+                // =====================================================
 
                 FileSplit split =
                         (FileSplit)
@@ -535,48 +436,45 @@ public class Query2_TopResources {
                 String fileName =
                         split.getPath().getName();
 
-                String numeric =
-                        fileName.replaceAll(
-                                "[^0-9]",
-                                ""
-                        );
+                /*
+                    Example:
 
-                int batchId =
-                        Integer.parseInt(numeric) + 1;
+                    filtered-m-00112
+                 */
 
-                String host =
-                        parts[0];
+                int batchId;
 
-                String path =
-                        parts[5];
+                try {
 
-                long bytes = 0;
+                    String number =
+                            fileName.substring(
+                                    fileName.lastIndexOf("-") + 1
+                            );
 
-                if (!parts[8].equals("-")) {
+                    batchId =
+                            Integer.parseInt(number);
 
-                    bytes =
-                            Long.parseLong(parts[8]);
+                } catch (Exception e) {
+
+                    batchId = 0;
                 }
 
                 /*
-                    KEY:
-                        path
+                    VALUE FORMAT:
 
-                    VALUE:
-                        count,bytes,host,batch
+                    bytes|host|batchId
                  */
 
-                String mapValue =
-                        "1,"
-                                + bytes
-                                + ","
+                String outValue =
+                        bytes
+                                + "|"
                                 + host
-                                + ","
+                                + "|"
                                 + batchId;
 
                 context.write(
                         new Text(path),
-                        new Text(mapValue)
+                        new Text(outValue)
                 );
 
             } catch (Exception e) {
@@ -589,9 +487,9 @@ public class Query2_TopResources {
         }
     }
 
-    // =====================================
+    // =====================================================
     // REDUCER
-    // =====================================
+    // =====================================================
 
     public static class Query2Reducer
             extends Reducer<
@@ -609,7 +507,7 @@ public class Query2_TopResources {
 
             try {
 
-                int totalCount = 0;
+                int requestCount = 0;
 
                 long totalBytes = 0;
 
@@ -617,39 +515,39 @@ public class Query2_TopResources {
                         new HashSet<>();
 
                 Set<Integer> batches =
-                        new HashSet<>();
+                        new TreeSet<>();
 
                 for (Text value : values) {
 
                     String[] parts =
-                            value.toString().split(",");
+                            value.toString().split("\\|");
 
-                    totalCount +=
-                            Integer.parseInt(parts[0]);
+                    if (parts.length != 3) {
+                        continue;
+                    }
+
+                    requestCount++;
 
                     totalBytes +=
-                            Long.parseLong(parts[1]);
+                            Long.parseLong(parts[0]);
 
-                    hosts.add(parts[2]);
+                    hosts.add(
+                            parts[1].trim()
+                    );
 
                     batches.add(
-                            Integer.parseInt(parts[3])
+                            Integer.parseInt(parts[2])
                     );
                 }
 
-                // =====================================
-                // SORT BATCH IDS
-                // =====================================
-
-                List<Integer> sorted =
-                        new ArrayList<>(batches);
-
-                Collections.sort(sorted);
+                // =====================================================
+                // BUILD BATCH STRING
+                // =====================================================
 
                 String batchString =
                         String.join(
                                 "+",
-                                sorted.stream()
+                                batches.stream()
                                         .map(String::valueOf)
                                         .toArray(String[]::new)
                         );
@@ -657,13 +555,13 @@ public class Query2_TopResources {
                 /*
                     OUTPUT FORMAT:
 
-                    path,count,totalBytes,distinctHosts,batches
+                    path	count	bytes	distinctHosts	batches
                  */
 
                 String output =
                         key.toString()
                                 + "\t"
-                                + totalCount
+                                + requestCount
                                 + "\t"
                                 + totalBytes
                                 + "\t"
