@@ -91,10 +91,28 @@ public class Query3_HourlyErrorAnalysis {
             // CREATE JOB
             // =====================================
 
+            conf.set(
+
+                    "mapreduce.job.jar",
+
+                    ConfigReader.get("mapreduce.job.jar")
+
+            );
+
+// =====================================
+
+// CREATE JOB
+
+// =====================================
+
             Job job =
+
                     Job.getInstance(
+
                             conf,
+
                             "Query3 Hourly Error Analysis"
+
                     );
 
             job.setJarByClass(

@@ -94,10 +94,30 @@ public class Query1_DailyTraffic_Global {
             // CREATE JOB
             // =====================================
 
+            // ADD HERE
+
+            conf.set(
+
+                    "mapreduce.job.jar",
+
+                    ConfigReader.get("mapreduce.job.jar")
+
+            );
+
+// =====================================
+
+// CREATE JOB
+
+// =====================================
+
             Job job =
+
                     Job.getInstance(
+
                             conf,
+
                             "Query1 Daily Traffic Global"
+
                     );
 
             job.setJarByClass(

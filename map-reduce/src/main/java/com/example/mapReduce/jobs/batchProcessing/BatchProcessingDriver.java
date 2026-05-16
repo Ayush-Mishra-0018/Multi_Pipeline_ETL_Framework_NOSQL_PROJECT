@@ -51,10 +51,10 @@ public final class BatchProcessingDriver {
                     ConfigReader.get("yarn.resourcemanager.scheduler.address"));
             conf.set("yarn.resourcemanager.resource-tracker.address",
                     ConfigReader.get("yarn.resourcemanager.resource-tracker.address"));
-
-//            conf.set("mapreduce.job.jar",
-//                    "/Users/harshsinha/Desktop/iiitbSemester/sem6/noSql/nosql-etl-project/map-reduce/target/map-reduce-1.0-SNAPSHOT.jar"
-//            );
+            conf.set(
+                    "mapreduce.job.jar",
+                    ConfigReader.get("mapreduce.job.jar")
+            );
 
             conf.set("fs.hdfs.impl",
                     org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());

@@ -88,10 +88,28 @@ public class Query2_TopResources {
             // CREATE JOB
             // =====================================
 
+            conf.set(
+
+                    "mapreduce.job.jar",
+
+                    ConfigReader.get("mapreduce.job.jar")
+
+            );
+
+// =====================================
+
+// CREATE JOB
+
+// =====================================
+
             Job job =
+
                     Job.getInstance(
+
                             conf,
+
                             "Query2 Top Resources"
+
                     );
 
             job.setJarByClass(
