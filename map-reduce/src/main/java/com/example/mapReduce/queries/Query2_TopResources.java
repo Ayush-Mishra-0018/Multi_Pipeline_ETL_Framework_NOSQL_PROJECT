@@ -70,7 +70,13 @@ public class Query2_TopResources {
             // =====================================================
             // JOB
             // =====================================================
+            conf.set(
 
+                    "mapreduce.job.jar",
+
+                    ConfigReader.get("mapreduce.job.jar")
+
+            );
             Job job =
                     Job.getInstance(
                             conf,

@@ -2,6 +2,7 @@ package com.example.mapReduce.dataSetup;
 
 import com.example.config.ConfigReader;
 import com.example.mapReduce.jobs.batchProcessing.BatchProcessingDriver;
+import com.example.mapReduce.service.HadoopClusterManager;
 import com.example.mapReduce.service.HdfsFileUploader;
 import com.example.model.MalformedRecord;
 import com.example.model.PipelineExecutionResult;
@@ -40,6 +41,7 @@ public class MapReduceDataSetupExecutor {
     public static PipelineExecutionResult execute() {
 
         try {
+            HadoopClusterManager.restartHadoopCluster();
 
             // =====================================
             // UPLOAD INPUT FILES TO HDFS
