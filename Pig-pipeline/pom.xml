@@ -37,10 +37,116 @@
         </dependency>
 
         <!-- LOMBOK -->
-            <dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- ── Apache Pig Embedded API ──────────────────────────────────────────
+             PigContext has hard imports of org.apache.log4j.* so log4j cannot
+             be excluded. We only exclude Pig's bundled Hadoop jars (we supply
+             our own below) and its SLF4J bridge (we manage one binding ourselves).
+        -->
+        <dependency>
+            <groupId>org.apache.pig</groupId>
+            <artifactId>pig</artifactId>
+            <version>0.17.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hadoop</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ── Jython standalone ────────────────────────────────────────────────
+             Pig's stats collector (MRJobStats) calls
+             org.python.google.common.collect.Lists — a Guava class shaded inside
+             jython-standalone under the org.python.* prefix. Without this jar on
+             the classpath that class is invisible, causing the NoClassDefFoundError
+             that crashed the run after the MapReduce job itself completed.
+             Must be the same version Pig 0.17.0 was built against.
+        -->
+        <dependency>
+            <groupId>org.python</groupId>
+            <artifactId>jython-standalone</artifactId>
+            <version>2.7.0</version>
+        </dependency>
+
+        <!-- ── Hadoop client (local MapReduce runner) ───────────────────────────
+             Provides LocalJobRunner so Pig executes MapReduce jobs inside this
+             JVM without a real cluster.
+             Exclude every SLF4J-to-Log4j bridge Hadoop pulls in transitively;
+             we supply exactly one SLF4J binding (slf4j-simple) below.
+             Exclude Hadoop's log4j transitive so our explicit pin below wins.
+        -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>3.3.6</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ── Log4j 1.x — required by Pig's internals ─────────────────────────
+             PigContext and other Pig classes import org.apache.log4j.* directly.
+             Pinned to 1.2.17 (last stable 1.x release).
+             No SLF4J delegation loop: slf4j-log4j12 / slf4j-reload4j are both
+             excluded above; slf4j-simple (below) is fully independent of Log4j.
+        -->
+        <dependency>
+            <groupId>log4j</groupId>
+            <artifactId>log4j</artifactId>
+            <version>1.2.17</version>
+        </dependency>
+
+        <!-- ── SLF4J API + single binding ───────────────────────────────────────
+             slf4j-simple writes to stderr, has zero extra deps, and no Log4j
+             involvement — cannot form a delegation loop.
+             Hadoop's SLF4J calls go here; Pig's direct Log4j calls go to log4j
+             above. The two paths are independent.
+        -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+
+        <!-- ── Guava version pin ────────────────────────────────────────────────
+             Pig 0.17 and Hadoop 3.x pull in Guava at incompatible versions.
+             28.0-jre satisfies both and is compatible with Pig 0.17's internal
+             Guava usage (27.0-jre caused resolution issues with shaded classes).
+        -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>28.0-jre</version>
         </dependency>
 
     </dependencies>
