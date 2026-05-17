@@ -59,12 +59,23 @@ public final class PigServerManager {
         try {
             Properties props = new Properties();
 
-            // Suppress Pig's verbose job-progress output (same noise the original
-            // code already silenced with the commented-out System.out.println).
+            // Suppress Pig's verbose job-progress output.
             props.setProperty("pig.logfile", "/dev/null");
 
             // Partial aggregation in the map phase — reduces shuffle volume.
             props.setProperty("pig.exec.mapPartAgg", "true");
+
+            // ── KEY FIX: isolate every thread's Hadoop temp space ────────────────
+            // PigServer in LOCAL mode uses Hadoop's LocalJobRunner, which writes
+            // staging / scratch files under hadoop.tmp.dir.  When multiple threads
+            // share the default /tmp, their jobs collide and random batches are
+            // silently dropped.  Giving each thread its own sub-directory (keyed
+            // by thread ID) makes concurrent execution safe again.
+            String threadTmpDir = "./pig_data/tmp/thread-"
+                    + Thread.currentThread().getId();
+            new java.io.File(threadTmpDir).mkdirs();
+            props.setProperty("hadoop.tmp.dir",   threadTmpDir);
+            props.setProperty("pig.temp.dir",     threadTmpDir);
 
             // ExecType.LOCAL = "pig -x local":
             //   - No hadoop-site.xml / core-site.xml required
