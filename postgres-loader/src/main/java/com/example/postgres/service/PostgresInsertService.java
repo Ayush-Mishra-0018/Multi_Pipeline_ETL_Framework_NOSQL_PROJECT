@@ -547,4 +547,104 @@ public final class PostgresInsertService {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Overloaded version of insertGlobalMetadata that accepts a plain
+     * Map<String,Object> instead of a MongoDB BSON Document.
+     * Used by Hive, Pig, and MapReduce pipelines which have no MongoDB dependency.
+     *
+     * Expected map keys (all optional, defaults to 0 if missing):
+     *   totalRecords, totalValid, totalMalformed,
+     *   totalBatches, avgBatchSize, executionTimeMs
+     */
+    public static void insertGlobalMetadataMap(
+            String pipelineName,
+            List<Integer> queries,
+            long totalRuntime,
+            Map<String, Object> meta
+    ) {
+        // Convert Map to a minimal Document-like accessor via a helper Document
+        // We avoid a MongoDB dependency by building a thin BSON Document wrapper.
+        // Actually – we replicate the insertion logic directly to keep it clean.
+
+        int runId = -1;
+        String globalDatabase = "global_db";
+        String jdbcUrl = BASE_URL + "/" + globalDatabase;
+
+        try (
+                Connection conn = DriverManager.getConnection(jdbcUrl, USER, PASSWORD)
+        ) {
+            conn.setAutoCommit(false);
+
+            // ── INSERT run_metadata ──────────────────────────────────
+            String runSql =
+                    "INSERT INTO run_metadata (" +
+                            "pipeline_name, query_name, runtime" +
+                            ") VALUES (?, ?, ?)";
+
+            try (
+                    PreparedStatement ps = conn.prepareStatement(
+                            runSql, Statement.RETURN_GENERATED_KEYS)
+            ) {
+                int queryName = (queries.size() == 3) ? 4 : queries.get(0);
+
+                ps.setString(1, pipelineName);
+                ps.setInt(2, queryName);
+                ps.setDouble(3, totalRuntime);
+                ps.executeUpdate();
+
+                ResultSet rs = ps.getGeneratedKeys();
+                if (rs.next()) {
+                    runId = rs.getInt(1);
+                }
+            }
+
+            // ── Extract values from Map ──────────────────────────────
+            int    totalRecords     = getInt(meta, "totalRecords");
+            int    totalValid       = getInt(meta, "totalValid");
+            int    totalMalformed   = getInt(meta, "totalMalformed");
+            int    totalBatches     = getInt(meta, "totalBatches");
+            double avgBatchSize     = getDouble(meta, "avgBatchSize");
+            int    executionTimeMs  = getInt(meta, "executionTimeMs");
+
+            // ── INSERT batch_metadata ────────────────────────────────
+            String batchSql =
+                    "INSERT INTO batch_metadata (" +
+                            "run_id, pipeline_name, total_records, total_valid, " +
+                            "total_malformed, total_batches, avg_batch_size, execution_time_ms" +
+                            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (
+                    PreparedStatement ps = conn.prepareStatement(batchSql)
+            ) {
+                ps.setInt(1, runId);
+                ps.setString(2, pipelineName);
+                ps.setInt(3, totalRecords);
+                ps.setInt(4, totalValid);
+                ps.setInt(5, totalMalformed);
+                ps.setInt(6, totalBatches);
+                ps.setDouble(7, avgBatchSize);
+                ps.setInt(8, executionTimeMs);
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+            System.out.println("Global metadata inserted successfully.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ── private helpers for Map-based metadata extraction ────────────
+
+    private static int getInt(Map<String, Object> map, String key) {
+        Object val = map.getOrDefault(key, 0);
+        return val == null ? 0 : ((Number) val).intValue();
+    }
+
+    private static double getDouble(Map<String, Object> map, String key) {
+        Object val = map.getOrDefault(key, 0.0);
+        return val == null ? 0.0 : ((Number) val).doubleValue();
+    }
 }

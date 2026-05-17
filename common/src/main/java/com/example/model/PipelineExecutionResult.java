@@ -16,4 +16,6 @@ public class PipelineExecutionResult {
     private long executionTime;
 
     private List<MalformedRecord> malformedRecords;
+
+    private int totalBatches;
 }
