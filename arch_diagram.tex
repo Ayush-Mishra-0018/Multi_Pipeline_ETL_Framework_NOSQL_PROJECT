@@ -1,0 +1,228 @@
+\documentclass[landscape,a2paper]{article}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc}
+
+\definecolor{cEntry} {HTML}{1E293B}
+\definecolor{cCommon}{HTML}{0F4C75}
+\definecolor{cMongo} {HTML}{116530}
+\definecolor{cHive}  {HTML}{7B2D00}
+\definecolor{cPig}   {HTML}{4A0072}
+\definecolor{cMR}    {HTML}{8B1A1A}
+\definecolor{cPG}    {HTML}{2D6A4F}
+\definecolor{cData}  {HTML}{3D2B1F}
+
+\tikzset{
+  base/.style={rectangle, rounded corners=4pt, draw, very thick,
+    text width=3.2cm, align=center, font=\small\bfseries,
+    inner sep=6pt, minimum height=1.1cm, fill=white},
+  entry/.style ={base, draw=cEntry,  fill=cEntry!15,  text=cEntry},
+  common/.style={base, draw=cCommon, fill=cCommon!10, text=cCommon},
+  mongo/.style ={base, draw=cMongo,  fill=cMongo!10,  text=cMongo},
+  hive/.style  ={base, draw=cHive,   fill=cHive!10,   text=cHive},
+  pig/.style   ={base, draw=cPig,    fill=cPig!10,    text=cPig},
+  mr/.style    ={base, draw=cMR,     fill=cMR!10,     text=cMR},
+  pg/.style    ={base, draw=cPG,     fill=cPG!10,     text=cPG},
+  data/.style  ={base, draw=cData,   fill=cData!10,   text=cData},
+  arr/.style   ={-{Stealth[length=6pt]}, thick},
+  darr/.style  ={-{Stealth[length=5pt]}, thick, dashed, gray},
+}
+
+\begin{document}
+\pagestyle{empty}
+\begin{tikzpicture}[node distance=0.8cm and 1.0cm]
+
+%% ─── ENTRY COLUMN (centred at x=0) ─────────────────────────────────────────
+\node[data] (nasa) at (0,0)
+  {NASA HTTP Logs\\[2pt]{\footnotesize Jul95 + Aug95, $\approx$373\,MB CLF}};
+
+\node[entry, below=1.0cm of nasa] (main)  {Main.java};
+\node[entry, left=1.5cm  of main] (menu)  {ConsoleMenu};
+\node[entry, right=1.5cm of main] (uih)   {UserInput\\Handler};
+
+\node[entry, below=1.0cm of main] (pgInit)
+  {PostgresSchema\\Initializer\\[2pt]{\scriptsize initializeGlobal()}};
+
+\node[entry, below=0.9cm of pgInit] (disp)
+  {PipelineDispatcher\\[2pt]{\scriptsize dispatch(choice, queries)}};
+
+\draw[arr] (nasa)--(main);
+\draw[arr] (main)--(menu);
+\draw[arr] (main)--(uih);
+\draw[arr] (main)--(pgInit);
+\draw[arr] (pgInit)--(disp);
+
+%% ─── COMMON MODULE (far right at x=22, clear of all pipelines) ──────────────
+\node[common] (cfgR)  at (22, -0.5)
+  {ConfigReader\\[2pt]{\scriptsize app.properties}};
+
+\node[common, below=0.7cm of cfgR]  (lp)
+  {LogParser\\[2pt]{\scriptsize regex CLF parser}};
+
+\node[common, below=0.7cm of lp]    (br)
+  {BatchReader\\[2pt]{\scriptsize ISO-8859-1 stream}};
+
+\node[common, below=0.7cm of br]    (bp)
+  {BatchProcessor\\[2pt]{\scriptsize processBatch()}};
+
+\node[common, below=0.7cm of bp]    (mPL)
+  {ParsedLog\\[2pt]{\scriptsize host, date, hour,\\path, status, bytes}};
+
+\node[common, below=0.7cm of mPL]   (mBR)
+  {BatchResult\\[2pt]{\scriptsize valid / malformed}};
+
+\node[common, below=0.7cm of mBR]   (mPER)
+  {PipelineExecution\\Result};
+
+\draw[arr,cCommon] (lp)--(br); \draw[arr,cCommon] (br)--(bp);
+\draw[arr,cCommon] (bp)--(mPL); \draw[arr,cCommon] (mPL)--(mBR);
+
+\begin{scope}[on background layer]
+  \node[draw=cCommon, fill=cCommon!5, very thick, rounded corners=6pt,
+        fit=(cfgR)(mPER), inner sep=9pt,
+        label={[text=cCommon,font=\normalsize\bfseries]north:Common Module}] {};
+\end{scope}
+
+%% ─── PIPELINE BASE (well below dispatcher) ──────────────────────────────────
+\coordinate (pBase) at ([yshift=-3.5cm]disp.south);
+
+%% ─── PIPELINE 1 — MONGODB  x = −13.5 ───────────────────────────────────────
+\node[mongo] (mDS) at ([xshift=-13.5cm]pBase) {MongoDataSetup\\Executor};
+\node[mongo, below=0.7cm of mDS]  (mIS)  {MongoInsert\\Service};
+\node[mongo, below=0.7cm of mIS]  (mCol) {MongoDB Collections\\[2pt]{\scriptsize parsed\_logs\\filtered\_logs\_batch\_N\\batch\_metadata\\pipeline\_summary}};
+\node[mongo, below=0.7cm of mCol] (mQR)  {Mongo QueryRunner};
+\node[mongo, below=0.7cm of mQR]  (mQ1)  {Q1 Daily Traffic\\[2pt]{\scriptsize \$group date+status}};
+\node[mongo, below=0.7cm of mQ1]  (mQ2)  {Q2 Top Resources\\[2pt]{\scriptsize top-20 paths}};
+\node[mongo, below=0.7cm of mQ2]  (mQ3)  {Q3 Hourly Errors\\[2pt]{\scriptsize 4xx/5xx rate}};
+\draw[arr,cMongo](mDS)--(mIS); \draw[arr,cMongo](mIS)--(mCol);
+\draw[arr,cMongo](mCol)--(mQR); \draw[arr,cMongo](mQR)--(mQ1);
+\draw[arr,cMongo](mQ1)--(mQ2); \draw[arr,cMongo](mQ2)--(mQ3);
+\begin{scope}[on background layer]
+  \node[draw=cMongo, fill=cMongo!5, very thick, rounded corners=6pt,
+        fit=(mDS)(mQ3), inner sep=9pt,
+        label={[text=cMongo,font=\normalsize\bfseries]north:\textbf{Pipeline 1 --- MongoDB}}] {};
+\end{scope}
+
+%% ─── PIPELINE 2 — HIVE  x = −4.5 ───────────────────────────────────────────
+\node[hive] (hDS) at ([xshift=-4.5cm]pBase) {HiveDataSetup\\Executor};
+\node[hive, below=0.7cm of hDS]  (hUp)  {HdfsUploader\\[2pt]{\scriptsize staged\_batches.txt $\to$ HDFS}};
+\node[hive, below=0.7cm of hUp]  (hSB)  {HiveScript\\Builder};
+\node[hive, below=0.7cm of hSB]  (hPR)  {HiveProcess\\Runner\\[2pt]{\scriptsize hive -f hive\_setup.hql}};
+\node[hive, below=0.7cm of hPR]  (hTbl) {Hive Tables\\[2pt]{\scriptsize nasa\_raw\_logs\\nasa\_parsed\_logs\\nasa\_malformed\_logs\\nasa\_filtered\_logs}};
+\node[hive, below=0.7cm of hTbl] (hQR)  {Hive QueryRunner};
+\node[hive, below=0.7cm of hQR]  (hHQL) {HQL Queries\\[2pt]{\scriptsize hive\_query\_1/2/3.hql}};
+\draw[arr,cHive](hDS)--(hUp); \draw[arr,cHive](hUp)--(hSB);
+\draw[arr,cHive](hSB)--(hPR); \draw[arr,cHive](hPR)--(hTbl);
+\draw[arr,cHive](hTbl)--(hQR); \draw[arr,cHive](hQR)--(hHQL);
+\begin{scope}[on background layer]
+  \node[draw=cHive, fill=cHive!5, very thick, rounded corners=6pt,
+        fit=(hDS)(hHQL), inner sep=9pt,
+        label={[text=cHive,font=\normalsize\bfseries]north:\textbf{Pipeline 2 --- Hive}}] {};
+\end{scope}
+
+%% ─── PIPELINE 3 — PIG  x = +4.5 ────────────────────────────────────────────
+\node[pig] (pDS) at ([xshift=4.5cm]pBase) {PigDataSetup\\Executor};
+\node[pig, below=0.7cm of pDS]  (pIS)  {PigInsertService\\[2pt]{\scriptsize writeRawBatch()}};
+\node[pig, below=0.7cm of pIS]  (pPSE) {PigScript\\Executor\\[2pt]{\scriptsize embedded PigServer}};
+\node[pig, below=0.7cm of pPSE] (pScr) {parse\_and\_clean.pig\\[2pt]{\scriptsize REGEX\_EXTRACT\_ALL\\SPLIT valid/malformed}};
+\node[pig, below=0.7cm of pScr] (pOut) {pig\_data/\\[2pt]{\scriptsize valid/batch\_N\\malformed/batch\_N}};
+\node[pig, below=0.7cm of pOut] (pQR)  {Pig QueryRunner};
+\node[pig, below=0.7cm of pQR]  (pQS)  {Pig Query Scripts\\[2pt]{\scriptsize query1/2/3.pig}};
+\draw[arr,cPig](pDS)--(pIS); \draw[arr,cPig](pIS)--(pPSE);
+\draw[arr,cPig](pPSE)--(pScr); \draw[arr,cPig](pScr)--(pOut);
+\draw[arr,cPig](pOut)--(pQR); \draw[arr,cPig](pQR)--(pQS);
+\begin{scope}[on background layer]
+  \node[draw=cPig, fill=cPig!5, very thick, rounded corners=6pt,
+        fit=(pDS)(pQS), inner sep=9pt,
+        label={[text=cPig,font=\normalsize\bfseries]north:\textbf{Pipeline 3 --- Pig}}] {};
+\end{scope}
+
+%% ─── PIPELINE 4 — MAPREDUCE  x = +13.5 ─────────────────────────────────────
+\node[mr] (rDS) at ([xshift=13.5cm]pBase) {MapReduceDataSetup\\Executor};
+\node[mr, below=0.7cm of rDS]  (rHCM) {HadoopCluster\\Manager\\[2pt]{\scriptsize restartCluster()}};
+\node[mr, below=0.7cm of rHCM] (rHFU) {HdfsFile\\Uploader};
+\node[mr, below=0.7cm of rHFU] (rBPD) {BatchProcessing\\Driver\\[2pt]{\scriptsize runJob()}};
+\node[mr, below=0.7cm of rBPD] (rMap) {BatchProcessing\\Mapper\\[2pt]{\scriptsize LogParser + MultipleOutputs}};
+\node[mr, below=0.7cm of rMap] (rHO)  {HDFS Output\\[2pt]{\scriptsize filtered/ malformed/\\stats.txt}};
+\node[mr, below=0.7cm of rHO]  (rQR)  {MR QueryRunner};
+\node[mr, below=0.7cm of rQR]  (rMRQ) {MR Query Jobs\\[2pt]{\scriptsize Q1/Q2/Q3 Mapper+Reducer}};
+\draw[arr,cMR](rDS)--(rHCM); \draw[arr,cMR](rHCM)--(rHFU);
+\draw[arr,cMR](rHFU)--(rBPD); \draw[arr,cMR](rBPD)--(rMap);
+\draw[arr,cMR](rMap)--(rHO); \draw[arr,cMR](rHO)--(rQR);
+\draw[arr,cMR](rQR)--(rMRQ);
+\begin{scope}[on background layer]
+  \node[draw=cMR, fill=cMR!5, very thick, rounded corners=6pt,
+        fit=(rDS)(rMRQ), inner sep=9pt,
+        label={[text=cMR,font=\normalsize\bfseries]north:\textbf{Pipeline 4 --- MapReduce}}] {};
+\end{scope}
+
+%% ─── DISPATCHER ARROWS ───────────────────────────────────────────────────────
+\draw[arr,cMongo,very thick] (disp.south)--++(0,-1.2)-|(mDS.north);
+\draw[arr,cHive, very thick] (disp.south)--++(0,-1.2)-|(hDS.north);
+\draw[arr,cPig,  very thick] (disp.south)--++(0,-1.2)-|(pDS.north);
+\draw[arr,cMR,   very thick] (disp.south)--++(0,-1.2)-|(rDS.north);
+
+%% ─── POSTGRESQL SINK ─────────────────────────────────────────────────────────
+\node[pg,text width=3.5cm] (pgM) at ([yshift=-3.5cm]mQ3.south)
+  {DB: \texttt{mongodb}\\[3pt]{\scriptsize query\_1 / query\_2 / query\_3\\malformed\_record\_summary}};
+\node[pg,text width=3.5cm] (pgH) at ([yshift=-3.5cm]hHQL.south)
+  {DB: \texttt{hive}\\[3pt]{\scriptsize query\_1 / query\_2 / query\_3\\malformed\_record\_summary}};
+\node[pg,text width=3.5cm] (pgP) at ([yshift=-3.5cm]pQS.south)
+  {DB: \texttt{pig}\\[3pt]{\scriptsize query\_1 / query\_2 / query\_3\\malformed\_record\_summary}};
+\node[pg,text width=3.5cm] (pgR) at ([yshift=-3.5cm]rMRQ.south)
+  {DB: \texttt{mapreduce}\\[3pt]{\scriptsize query\_1 / query\_2 / query\_3\\malformed\_record\_summary}};
+\node[pg,text width=4.2cm] (pgG) at ($(pgH)!0.5!(pgP)+(0,-3.2)$)
+  {DB: \texttt{global\_db}\\[3pt]{\scriptsize run\_metadata\\batch\_metadata}};
+
+\draw[arr,cMongo](mQ3.south)--(pgM.north);
+\draw[arr,cHive] (hHQL.south)--(pgH.north);
+\draw[arr,cPig]  (pQS.south)--(pgP.north);
+\draw[arr,cMR]   (rMRQ.south)--(pgR.north);
+\draw[arr,cPG](pgM.south)--++(0,-0.6)-|(pgG.north);
+\draw[arr,cPG](pgH.south)--++(0,-0.6)-|(pgG.north);
+\draw[arr,cPG](pgP.south)--++(0,-0.6)-|(pgG.north);
+\draw[arr,cPG](pgR.south)--++(0,-0.6)-|(pgG.north);
+
+\begin{scope}[on background layer]
+  \node[draw=cPG, fill=cPG!5, very thick, rounded corners=6pt,
+        fit=(pgM)(pgR)(pgG), inner sep=10pt,
+        label={[text=cPG,font=\normalsize\bfseries]north:PostgreSQL Reporting Layer}] {};
+\end{scope}
+
+%% ─── SHARED DEPENDENCY ARROWS (ConfigReader → each pipeline top-right) ────────
+%% Each arrow leaves cfgR.west, goes left to a clearance lane, then drops down
+%% and enters the pipeline box from its north-east corner.
+\draw[darr] (cfgR.west) -- ++(-0.6,0) |- (mDS.north -| {([xshift=1.8cm]mDS.north east)}) -- (mDS.north east);
+\draw[darr] (cfgR.west) -- ++(-0.6,0) |- (hDS.north -| {([xshift=1.8cm]hDS.north east)}) -- (hDS.north east);
+\draw[darr] (cfgR.west) -- ++(-0.6,0) |- (pDS.north -| {([xshift=1.8cm]pDS.north east)}) -- (pDS.north east);
+\draw[darr] (cfgR.west) -- ++(-0.6,0) |- (rDS.north -| {([xshift=1.8cm]rDS.north east)}) -- (rDS.north east);
+
+%% ─── LEGEND (right column, below Common Module) ─────────────────────────────
+\node[draw=gray!70, fill=white, rounded corners=4pt,
+      anchor=north, inner sep=12pt, font=\small,
+      label={[font=\small\bfseries,text=gray]north:Legend}]
+  at ([yshift=-2.0cm]mPER.south) {
+  \begin{tabular}{@{}cl@{}}
+    \textcolor{cData}  {\rule{14pt}{9pt}} & Raw Data Source\\[5pt]
+    \textcolor{cEntry} {\rule{14pt}{9pt}} & Entry / Orchestration\\[5pt]
+    \textcolor{cCommon}{\rule{14pt}{9pt}} & Common Module (shared)\\[5pt]
+    \textcolor{cMongo} {\rule{14pt}{9pt}} & MongoDB Pipeline\\[5pt]
+    \textcolor{cHive}  {\rule{14pt}{9pt}} & Hive Pipeline\\[5pt]
+    \textcolor{cPig}   {\rule{14pt}{9pt}} & Pig Pipeline\\[5pt]
+    \textcolor{cMR}    {\rule{14pt}{9pt}} & MapReduce Pipeline\\[5pt]
+    \textcolor{cPG}    {\rule{14pt}{9pt}} & PostgreSQL Sink\\[5pt]
+    \textcolor{gray}   {$--\!\to$}        & Shared dependency\\
+  \end{tabular}};
+
+%% ─── TITLE ───────────────────────────────────────────────────────────────────
+\node[font=\LARGE\bfseries, text=cEntry, above=1.4cm of nasa]
+  (title) {Multi-Pipeline ETL Framework --- System Architecture};
+\node[font=\normalsize, text=gray, below=0.1cm of title]
+  {NASA HTTP Server Log Analytics $\;\cdot\;$
+   MongoDB $\;\cdot\;$ Hive $\;\cdot\;$ Pig $\;\cdot\;$ MapReduce
+   $\;\longrightarrow\;$ PostgreSQL};
+
+\end{tikzpicture}
+\end{document}

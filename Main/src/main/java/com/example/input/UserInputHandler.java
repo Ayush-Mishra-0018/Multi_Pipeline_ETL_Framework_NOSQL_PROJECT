@@ -1,5 +1,8 @@
 package com.example.input;
 
+import com.example.config.ConfigReader;
+import com.example.config.PropertyUpdater;
+
 import java.util.*;
 
 public final class UserInputHandler {
@@ -61,6 +64,69 @@ public final class UserInputHandler {
         return queries;
     }
 
+    // =====================================
+    // BATCH SIZE INPUT
+    // =====================================
+
+    // =====================================
+// BATCH SIZE INPUT
+// =====================================
+
+    public static int getBatchSize(
+            int defaultBatchSize
+    ) {
+
+        System.out.print(
+                "\nEnter batch size " +
+                        "(press Enter to use default = "
+                        + defaultBatchSize
+                        + "): "
+        );
+
+        String input =
+                scanner.nextLine().trim();
+
+        // =====================================
+        // USE DEFAULT
+        // =====================================
+
+        if (input.isEmpty()) {
+
+            System.out.println(
+                    "Using default batch size: "
+                            + defaultBatchSize
+            );
+
+            return defaultBatchSize;
+        }
+
+        // =====================================
+        // VALIDATE INPUT
+        // =====================================
+
+        try {
+
+            int batchSize =
+                    Integer.parseInt(input);
+
+            if (batchSize <= 0) {
+
+                throw new RuntimeException();
+            }
+
+            return batchSize;
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Invalid batch size."
+            );
+
+            System.exit(1);
+
+            return defaultBatchSize;
+        }
+    }
     private static void validateQueries(
             List<Integer> queries
     ) {

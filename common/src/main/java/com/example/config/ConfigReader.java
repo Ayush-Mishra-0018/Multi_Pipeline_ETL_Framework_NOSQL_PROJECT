@@ -41,4 +41,10 @@ public final class ConfigReader {
     public static String get(String key, String defaultValue) {
         return PROPERTIES.getProperty(key, defaultValue);
     }
+    public static void reload() {
+
+        PROPERTIES.clear();
+
+        loadProperties();
+    }
 }

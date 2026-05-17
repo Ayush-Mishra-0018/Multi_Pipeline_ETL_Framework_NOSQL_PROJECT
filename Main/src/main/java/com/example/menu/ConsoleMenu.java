@@ -30,6 +30,7 @@ public final class ConsoleMenu {
         System.out.println("2. Hive");
         System.out.println("3. Pig");
         System.out.println("4. MapReduce");
+        System.out.println("5. Run All Pipelines");
     }
 
     public static void printQueries() {

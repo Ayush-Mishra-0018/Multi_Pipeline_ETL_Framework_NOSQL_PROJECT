@@ -1,13 +1,11 @@
 package com.example.runner;
 
-
 import com.example.hive.RunReportHive;
 import com.example.mapReduce.RunReportMapReduce;
 import com.example.mongo.RunReportMongo;
 import com.example.pig.RunReportPig;
 
 import java.util.List;
-
 
 public final class PipelineDispatcher {
 
@@ -24,7 +22,15 @@ public final class PipelineDispatcher {
             case 1:
 
                 System.out.println(
-                        "\nRunning MongoDB Pipeline..."
+                        "\n=================================================="
+                );
+
+                System.out.println(
+                        "Running MongoDB Pipeline..."
+                );
+
+                System.out.println(
+                        "=================================================="
                 );
 
                 RunReportMongo.reporting(
@@ -35,19 +41,67 @@ public final class PipelineDispatcher {
 
             case 2:
 
-                RunReportHive.reporting(queries);
+                System.out.println(
+                        "\n=================================================="
+                );
+
+                System.out.println(
+                        "Running Hive Pipeline..."
+                );
+
+                System.out.println(
+                        "=================================================="
+                );
+
+                RunReportHive.reporting(
+                        queries
+                );
 
                 break;
 
             case 3:
 
-                RunReportPig.reporting(queries);
+                System.out.println(
+                        "\n=================================================="
+                );
+
+                System.out.println(
+                        "Running Pig Pipeline..."
+                );
+
+                System.out.println(
+                        "=================================================="
+                );
+
+                RunReportPig.reporting(
+                        queries
+                );
 
                 break;
 
             case 4:
 
-                RunReportMapReduce.reporting(queries);
+                System.out.println(
+                        "\n=================================================="
+                );
+
+                System.out.println(
+                        "Running MapReduce Pipeline..."
+                );
+
+                System.out.println(
+                        "=================================================="
+                );
+
+                RunReportMapReduce.reporting(
+                        queries
+                );
+
+                break;
+
+            case 5:
+
+                runAllPipelines(queries);
 
                 break;
 
@@ -57,5 +111,82 @@ public final class PipelineDispatcher {
                         "\nInvalid pipeline choice."
                 );
         }
+    }
+
+    private static void runAllPipelines(
+            List<Integer> queries
+    ) {
+
+        System.out.println(
+                "\n=================================================="
+        );
+
+        System.out.println(
+                "RUNNING ALL PIPELINES"
+        );
+
+        System.out.println(
+                "=================================================="
+        );
+
+        // =====================================================
+        // MongoDB
+        // =====================================================
+
+        System.out.println(
+                "\n>>> Starting MongoDB Pipeline..."
+        );
+
+        RunReportMongo.reporting(
+                queries
+        );
+
+        // =====================================================
+        // Hive
+        // =====================================================
+
+        System.out.println(
+                "\n>>> Starting Hive Pipeline..."
+        );
+
+        RunReportHive.reporting(
+                queries
+        );
+
+        // =====================================================
+        // Pig
+        // =====================================================
+
+        System.out.println(
+                "\n>>> Starting Pig Pipeline..."
+        );
+
+        RunReportPig.reporting(
+                queries
+        );
+
+        // =====================================================
+        // MapReduce
+        // =====================================================
+
+        System.out.println(
+                "\n>>> Starting MapReduce Pipeline..."
+        );
+
+        RunReportMapReduce.reporting(
+                queries
+        );
+
+        System.out.println(
+                "\n=================================================="
+        );
+
+        System.out.println(
+                "ALL PIPELINES COMPLETED"
+        );
+
+        System.out.println(
+                "=================================================="
+        );
     }
 }
