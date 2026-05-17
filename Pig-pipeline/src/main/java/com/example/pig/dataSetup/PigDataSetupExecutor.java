@@ -137,24 +137,20 @@ public final class PigDataSetupExecutor {
             double avgBatchSize = totalBatches == 0
                     ? 0 : (double) totalRecordsProcessed / totalBatches;
 
-            org.bson.Document metadata = new org.bson.Document()
-                    .append("totalRecords",    (int) totalRecordsProcessed)
-                    .append("totalValid",      (int) totalValid)
-                    .append("totalMalformed",  (int) totalMalformed)
-                    .append("totalBatches",    totalBatches)
-                    .append("avgBatchSize",    avgBatchSize)
-                    .append("executionTimeMs", (int) totalTime);
-
-            PostgresInsertService.insertGlobalMetadata(
-                    "Pig", List.of(1, 2, 3), totalTime, metadata);
-
-            PostgresInsertService.insertMalformed("pig", malformedRecords);
+            java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+            metadata.put("totalRecords",    (int) totalRecordsProcessed);
+            metadata.put("totalValid",      (int) totalValid);
+            metadata.put("totalMalformed",  (int) totalMalformed);
+            metadata.put("totalBatches",    totalBatches);
+            metadata.put("avgBatchSize",    avgBatchSize);
+            metadata.put("executionTimeMs", (int) totalTime);
 
             System.out.println("\nPig pipeline execution completed.");
 
             return PipelineExecutionResult.builder()
                     .executionTime(totalTime)
                     .malformedRecords(malformedRecords)
+                    .metadata(metadata)
                     .build();
 
         } catch (Exception e) {

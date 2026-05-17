@@ -8,7 +8,9 @@ import java.util.List;
 
 public class PigQueryRunner {
 
-    public static void runQueries(List<Integer> queries) {
+    public static long runQueries(List<Integer> queries) {
+        long startTime = System.currentTimeMillis();
+
         if (queries.contains(1)) {
             System.out.println("\nRunning Query 1: Daily Traffic Global (Pig)...");
             long start = System.currentTimeMillis();
@@ -29,6 +31,9 @@ public class PigQueryRunner {
             Query3_HourlyErrorAnalysis.run();
             System.out.println("Query 3 completed in " + (System.currentTimeMillis() - start) + " ms");
         }
+
+        long endTime = System.currentTimeMillis();
+        return endTime - startTime;
     }
 
     public static void main(String[] args) {

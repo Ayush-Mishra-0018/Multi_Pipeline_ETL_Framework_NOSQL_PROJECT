@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -18,4 +19,6 @@ public class PipelineExecutionResult {
     private List<MalformedRecord> malformedRecords;
 
     private int totalBatches;
+
+    private Map<String, Object> metadata;
 }
