@@ -5,6 +5,9 @@ data/
 !**/src/test/**/target/
 common/src/main/resources/app.properties
 
+### Pig
+pig_data
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
