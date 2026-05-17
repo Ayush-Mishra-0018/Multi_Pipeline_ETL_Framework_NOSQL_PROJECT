@@ -17,7 +17,7 @@ split_valid = FOREACH valid_logs GENERATE
     host,
     rawTimestamp,
     STRSPLIT(rawTimestamp, ':') AS date_parts,
-    STRSPLIT(REPLACE(request, '\\t', ' '), ' ') AS req_parts,
+    STRSPLIT(TRIM(REPLACE(request, '\\s+', ' ')), ' ') AS req_parts,
     status,
     bytes,
     (int)'$BATCH_ID' AS batchId;
