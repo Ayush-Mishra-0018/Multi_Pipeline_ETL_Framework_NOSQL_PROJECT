@@ -4,6 +4,7 @@ import com.example.config.ConfigReader;
 import com.example.model.MalformedRecord;
 import com.example.model.PipelineExecutionResult;
 import com.example.pig.service.PigInsertService;
+import com.example.pig.util.BatchReader;
 import com.example.pig.util.PigScriptExecutor;
 import com.example.pig.util.PigServerManager;
 import com.example.postgres.service.PostgresInsertService;
@@ -77,15 +78,10 @@ public final class PigDataSetupExecutor {
                 filePath = filePath.trim();
                 System.out.println("Processing file: " + filePath);
 
-                try (BufferedReader reader =
-                             Files.newBufferedReader(Path.of(filePath), StandardCharsets.ISO_8859_1)) {
+                try (BatchReader reader = new BatchReader(filePath)) {
 
                     while (true) {
-                        List<String> rawLines = new ArrayList<>(batchSize);
-                        String line;
-                        while (rawLines.size() < batchSize && (line = reader.readLine()) != null) {
-                            rawLines.add(line);
-                        }
+                        List<String> rawLines = reader.readNextBatch(batchSize);
 
                         if (rawLines.isEmpty()) break;
 

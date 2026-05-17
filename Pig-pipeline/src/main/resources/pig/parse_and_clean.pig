@@ -2,18 +2,30 @@
 
 raw_data = LOAD '$INPUT_FILE' USING TextLoader() AS (line:chararray);
 
--- Parse the line using Regex
-parsed = FOREACH raw_data GENERATE 
-    FLATTEN(REGEX_EXTRACT_ALL(line, '^(\\S+) \\S+ \\S+ \\[(.*?)\\] "(.*?)" (\\d{3}) (\\S+)$')) 
-    AS (host:chararray, rawTimestamp:chararray, request:chararray, status:int, bytes:chararray), line;
+-- Parse the line while preserving original input
+parsed = FOREACH raw_data GENERATE
+    line,
+    REGEX_EXTRACT_ALL(
+        line,
+        '^(\\S+) \\S+ \\S+ \\[(.*?)\\] "(.*?)" (\\d{3}) (\\S+)$'
+    ) AS fields;
 
 -- Split valid and malformed records
-SPLIT parsed INTO 
-    valid_logs IF host IS NOT NULL, 
-    malformed_logs IF host IS NULL;
+SPLIT parsed INTO
+    valid_logs IF fields IS NOT NULL,
+    malformed_logs IF fields IS NULL;
 
--- Step 1: Perform the splits in a FOREACH
-split_valid = FOREACH valid_logs GENERATE
+-- Extract parsed fields from valid logs
+extracted_valid = FOREACH valid_logs GENERATE
+    line,
+    (chararray)fields.$0 AS host,
+    (chararray)fields.$1 AS rawTimestamp,
+    (chararray)fields.$2 AS request,
+    (int)fields.$3 AS status,
+    (chararray)fields.$4 AS bytes;
+
+-- Split timestamp and request parts
+split_valid = FOREACH extracted_valid GENERATE
     host,
     rawTimestamp,
     STRSPLIT(rawTimestamp, ':') AS date_parts,
@@ -22,20 +34,33 @@ split_valid = FOREACH valid_logs GENERATE
     bytes,
     (int)'$BATCH_ID' AS batchId;
 
--- Step 2: Format the final output
+-- Format final cleaned output
 formatted_valid = FOREACH split_valid GENERATE
     host,
     rawTimestamp,
-    ToString(ToDate((chararray)date_parts.$0, 'dd/MMM/yyyy'), 'yyyy-MM-dd') AS formattedDate,
+    ToString(
+        ToDate((chararray)date_parts.$0, 'dd/MMM/yyyy'),
+        'yyyy-MM-dd'
+    ) AS formattedDate,
+
     (int)(date_parts.$1) AS hour,
+
     (SIZE(req_parts) > 0 ? (chararray)req_parts.$0 : '') AS method,
+
     (SIZE(req_parts) > 1 ? (chararray)req_parts.$1 : '') AS path,
+
     (SIZE(req_parts) > 2 ? (chararray)req_parts.$2 : '') AS protocol,
+
     status,
+
     (bytes == '-' ? 0L : (long)bytes) AS bytes_val,
+
     batchId;
 
+-- Keep malformed raw lines separately
 just_malformed = FOREACH malformed_logs GENERATE line;
 
+-- Store outputs
 STORE formatted_valid INTO '$VALID_OUTPUT' USING PigStorage('\t');
+
 STORE just_malformed INTO '$MALFORMED_OUTPUT' USING PigStorage();
