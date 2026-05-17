@@ -13,16 +13,9 @@ import java.util.concurrent.*;
 /**
  * Hourly error-rate analysis per (date, hour) across all valid batches.
  *
- * <h3>What changed vs the original</h3>
- * <ul>
- *   <li>Each {@code Callable} calls {@link PigServerManager#close()} in a
- *       {@code finally} block to release the thread-local {@link org.apache.pig.PigServer}.
- *   <li>{@link PigScriptExecutor#executeQueryScript} now uses the embedded Pig
- *       API instead of a {@code ProcessBuilder} subprocess.
- * </ul>
- *
- * All merging, sorting, error-rate computation, Postgres insertion, and console
- * output logic is identical to the original.
+ * <h3>Execution model</h3>
+ * Batches are processed <em>sequentially</em> on a single worker thread.
+ * See {@link Query1_DailyTraffic_Global} for the full rationale.
  */
 public class Query3_HourlyErrorAnalysis {
 
@@ -45,8 +38,12 @@ public class Query3_HourlyErrorAnalysis {
             }
         }
 
-        ExecutorService executor =
-                Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        // Sort numerically so batches are always processed in order 1, 2, 3 …
+        batchCollections.sort(Comparator.comparingInt(
+                name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
+
+        // Sequential execution — see Query1_DailyTraffic_Global for rationale.
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
         List<Future<List<Document>>> futures = new ArrayList<>();
 
@@ -59,49 +56,38 @@ public class Query3_HourlyErrorAnalysis {
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
-                try {
-                    int batchId = Integer.parseInt(
-                            batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
+                int batchId = Integer.parseInt(
+                        batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
 
-                    String inputDir  = "./pig_data/valid/"     + batchDirName;
-                    String outputDir = "./pig_data/query3_out/" + batchDirName;
+                String inputDir  = "./pig_data/valid/"     + batchDirName;
+                String outputDir = "./pig_data/query3_out/" + batchDirName;
 
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
 
-                    // ── KEY CHANGE ────────────────────────────────────────────
-                    // Original: ProcessBuilder subprocess for each batch.
-                    // New:      embedded PigServer (thread-local, reused across
-                    //           batches on the same thread).
-                    // ─────────────────────────────────────────────────────────
-                    PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
+                List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
 
-                    List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
-
-                    List<Document> docs = new ArrayList<>();
-                    for (String line : lines) {
-                        try {
-                            String[] parts = line.split("\t");
-                            if (parts.length >= 6 && !parts[2].isEmpty()) {
-                                Document doc = new Document();
-                                doc.append("_id", new Document("log_date", parts[0])
-                                        .append("log_hour", Integer.parseInt(parts[1])));
-                                doc.append("error_request_count",  Integer.parseInt(parts[2]));
-                                doc.append("total_request_count",  Integer.parseInt(parts[3]));
-                                doc.append("distinct_error_hosts", PigBagParser.parseBag(parts[4]));
-                                doc.append("batch_id",             Integer.parseInt(parts[5]));
-                                docs.add(doc);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Skipping malformed line: " + line);
+                List<Document> docs = new ArrayList<>();
+                for (String line : lines) {
+                    try {
+                        String[] parts = line.split("\t");
+                        if (parts.length >= 6 && !parts[2].isEmpty()) {
+                            Document doc = new Document();
+                            doc.append("_id", new Document("log_date", parts[0])
+                                    .append("log_hour", Integer.parseInt(parts[1])));
+                            doc.append("error_request_count",  Integer.parseInt(parts[2]));
+                            doc.append("total_request_count",  Integer.parseInt(parts[3]));
+                            doc.append("distinct_error_hosts", PigBagParser.parseBag(parts[4]));
+                            doc.append("batch_id",             Integer.parseInt(parts[5]));
+                            docs.add(doc);
                         }
+                    } catch (Exception e) {
+                        System.err.println("Skipping malformed line: " + line);
                     }
-
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
-                    return docs;
-
-                } finally {
-                    PigServerManager.close();
                 }
+
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                return docs;
             }));
         }
 
@@ -111,6 +97,9 @@ public class Query3_HourlyErrorAnalysis {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        // Shut down the single worker thread's PigServer once, after all batches.
+        PigServerManager.close();
 
         // =========================
         // STEP 2: MERGE RESULTS

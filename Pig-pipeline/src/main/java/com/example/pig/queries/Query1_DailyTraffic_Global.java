@@ -6,26 +6,25 @@ import com.example.postgres.service.PostgresInsertService;
 import org.bson.Document;
 
 import java.io.File;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 
 /**
  * Daily traffic aggregation per (date, status_code) across all valid batches.
  *
- * <h3>What changed vs the original</h3>
- * <ul>
- *   <li>Each {@code Callable} now calls {@link PigServerManager#close()} in a
- *       {@code finally} block.  This cleanly shuts down the thread-local
- *       {@link org.apache.pig.PigServer} when the worker thread finishes its
- *       last batch, preventing resource leaks.
- *   <li>{@link PigScriptExecutor#executeQueryScript} now invokes the embedded
- *       Pig API (via {@link PigServerManager#get()}) instead of spawning a
- *       {@code pig} CLI subprocess.
- * </ul>
+ * <h3>Execution model</h3>
+ * Batches are processed <em>sequentially</em> on a single worker thread via
+ * {@link Executors#newSingleThreadExecutor()}.  This is required because
+ * {@link org.apache.pig.PigServer} in LOCAL mode is not safe to use
+ * concurrently within the same JVM — Hadoop's shared {@code Configuration}
+ * state causes non-deterministic failures when multiple Pig jobs run in
+ * parallel.  Sequential execution guarantees deterministic results on every
+ * run.
  *
- * Everything else — batch discovery, result merging, sorting, Postgres
- * insertion, and console output — is identical to the original.
+ * <p>Performance is still significantly better than the original
+ * {@code ProcessBuilder} approach because the single worker thread creates its
+ * {@link org.apache.pig.PigServer} <em>once</em> and reuses it for every
+ * batch — the 10–30 s per-batch JVM startup cost is paid exactly once.
  */
 public class Query1_DailyTraffic_Global {
 
@@ -48,8 +47,14 @@ public class Query1_DailyTraffic_Global {
             }
         }
 
-        ExecutorService executor =
-                Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        // Sort numerically so batches are always processed in order 1, 2, 3 …
+        batchCollections.sort(Comparator.comparingInt(
+                name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
+
+        // Sequential execution: PigServer in LOCAL mode is not thread-safe.
+        // A single worker thread creates its PigServer once and reuses it for
+        // every batch — no per-batch JVM startup, no shared-state collisions.
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
         List<Future<List<Document>>> futures = new ArrayList<>();
 
@@ -62,49 +67,39 @@ public class Query1_DailyTraffic_Global {
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
-                try {
-                    int batchId = Integer.parseInt(
-                            batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
+                // No try/finally PigServerManager.close() here — the PigServer
+                // is intentionally reused across all batches on this thread.
+                int batchId = Integer.parseInt(
+                        batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
 
-                    String inputDir  = "./pig_data/valid/"     + batchDirName;
-                    String outputDir = "./pig_data/query1_out/" + batchDirName;
+                String inputDir  = "./pig_data/valid/"     + batchDirName;
+                String outputDir = "./pig_data/query1_out/" + batchDirName;
 
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
 
-                    // ── KEY CHANGE ────────────────────────────────────────────
-                    // Original: ProcessBuilder("pig -x local -param ... -f query1.pig")
-                    // New:      embedded PigServer via PigScriptExecutor (same script,
-                    //           no subprocess, no per-batch JVM startup cost).
-                    // ─────────────────────────────────────────────────────────
-                    PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
+                List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
 
-                    List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
-
-                    List<Document> docs = new ArrayList<>();
-                    for (String line : lines) {
-                        try {
-                            String[] parts = line.split("\t");
-                            if (parts.length >= 5 && !parts[1].isEmpty()) {
-                                Document doc = new Document();
-                                doc.append("log_date",      parts[0]);
-                                doc.append("status_code",   Integer.parseInt(parts[1]));
-                                doc.append("request_count", Integer.parseInt(parts[2]));
-                                doc.append("total_bytes",   Long.parseLong(parts[3]));
-                                doc.append("batch_id",      Integer.parseInt(parts[4]));
-                                docs.add(doc);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Skipping malformed line: " + line);
+                List<Document> docs = new ArrayList<>();
+                for (String line : lines) {
+                    try {
+                        String[] parts = line.split("\t");
+                        if (parts.length >= 5 && !parts[1].isEmpty()) {
+                            Document doc = new Document();
+                            doc.append("log_date",      parts[0]);
+                            doc.append("status_code",   Integer.parseInt(parts[1]));
+                            doc.append("request_count", Integer.parseInt(parts[2]));
+                            doc.append("total_bytes",   Long.parseLong(parts[3]));
+                            doc.append("batch_id",      Integer.parseInt(parts[4]));
+                            docs.add(doc);
                         }
+                    } catch (Exception e) {
+                        System.err.println("Skipping malformed line: " + line);
                     }
-
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
-                    return docs;
-
-                } finally {
-                    // Shut down the PigServer owned by this worker thread.
-                    PigServerManager.close();
                 }
+
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                return docs;
             }));
         }
 
@@ -114,6 +109,11 @@ public class Query1_DailyTraffic_Global {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        // Shut down the single worker thread's PigServer now that all batches
+        // are done.  Called here (not inside each Callable) so the server is
+        // reused across all batches rather than recreated for every one.
+        PigServerManager.close();
 
         // =========================
         // STEP 2: MERGE RESULTS

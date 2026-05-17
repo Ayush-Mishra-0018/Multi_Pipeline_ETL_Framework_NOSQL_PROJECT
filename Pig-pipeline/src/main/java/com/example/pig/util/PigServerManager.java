@@ -18,16 +18,16 @@ import java.util.Properties;
  * same Pig Latin scripts entirely inside this JVM using a local file-system
  * execution engine.
  *
- * <h3>Why this is still faster than the original ProcessBuilder approach</h3>
- * The original code spawned a new {@code pig} process per batch, paying
- * 10–30 s of JVM + Pig bootstrap overhead every time. With the embedded API,
- * {@link PigServer} is created once per thread (thread-local) and reused for
- * every batch that thread handles — startup cost is paid exactly once.
- *
- * <h3>Why thread-local?</h3>
- * The query runners submit one {@code Callable} per batch to an
- * {@link java.util.concurrent.ExecutorService}. {@link PigServer} is not
- * thread-safe, so each worker thread needs its own instance.
+ * <h3>Thread-safety note</h3>
+ * {@link PigServer} in LOCAL mode is <em>not safe to use concurrently</em>
+ * across multiple threads in the same JVM — Hadoop's {@code Configuration}
+ * object has shared static state that causes non-deterministic failures when
+ * more than one Pig job runs at the same time.  The query runners therefore
+ * use a single-threaded executor so that all batches for a given query run
+ * sequentially on one thread.  This {@link ThreadLocal} wrapper ensures the
+ * single worker thread creates its {@link PigServer} once and reuses it for
+ * every batch, avoiding the per-batch JVM-startup cost that the old
+ * {@code ProcessBuilder} approach paid.
  */
 public final class PigServerManager {
 
@@ -43,7 +43,8 @@ public final class PigServerManager {
 
     /**
      * Shuts down and removes the {@link PigServer} for the calling thread.
-     * Call this in a {@code finally} block at the end of each worker thread.
+     * Call this <em>once</em>, after all batches for a query have finished,
+     * not after every individual batch.
      */
     public static void close() {
         PigServer ps = THREAD_LOCAL.get();
@@ -64,18 +65,6 @@ public final class PigServerManager {
 
             // Partial aggregation in the map phase — reduces shuffle volume.
             props.setProperty("pig.exec.mapPartAgg", "true");
-
-            // ── KEY FIX: isolate every thread's Hadoop temp space ────────────────
-            // PigServer in LOCAL mode uses Hadoop's LocalJobRunner, which writes
-            // staging / scratch files under hadoop.tmp.dir.  When multiple threads
-            // share the default /tmp, their jobs collide and random batches are
-            // silently dropped.  Giving each thread its own sub-directory (keyed
-            // by thread ID) makes concurrent execution safe again.
-            String threadTmpDir = "./pig_data/tmp/thread-"
-                    + Thread.currentThread().getId();
-            new java.io.File(threadTmpDir).mkdirs();
-            props.setProperty("hadoop.tmp.dir",   threadTmpDir);
-            props.setProperty("pig.temp.dir",     threadTmpDir);
 
             // ExecType.LOCAL = "pig -x local":
             //   - No hadoop-site.xml / core-site.xml required

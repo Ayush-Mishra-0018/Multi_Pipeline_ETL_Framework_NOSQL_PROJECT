@@ -13,16 +13,9 @@ import java.util.concurrent.*;
 /**
  * Top-20 most-requested resources across all valid batches.
  *
- * <h3>What changed vs the original</h3>
- * <ul>
- *   <li>Each {@code Callable} calls {@link PigServerManager#close()} in a
- *       {@code finally} block to release the thread-local {@link org.apache.pig.PigServer}.
- *   <li>{@link PigScriptExecutor#executeQueryScript} now uses the embedded Pig
- *       API instead of a {@code ProcessBuilder} subprocess.
- * </ul>
- *
- * All merging, top-20 selection, Postgres insertion, and console output logic
- * is identical to the original.
+ * <h3>Execution model</h3>
+ * Batches are processed <em>sequentially</em> on a single worker thread.
+ * See {@link Query1_DailyTraffic_Global} for the full rationale.
  */
 public class Query2_TopResources {
 
@@ -45,8 +38,12 @@ public class Query2_TopResources {
             }
         }
 
-        ExecutorService executor =
-                Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        // Sort numerically so batches are always processed in order 1, 2, 3 …
+        batchCollections.sort(Comparator.comparingInt(
+                name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
+
+        // Sequential execution — see Query1_DailyTraffic_Global for rationale.
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
         List<Future<List<Document>>> futures = new ArrayList<>();
 
@@ -59,48 +56,37 @@ public class Query2_TopResources {
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
-                try {
-                    int batchId = Integer.parseInt(
-                            batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
+                int batchId = Integer.parseInt(
+                        batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
 
-                    String inputDir  = "./pig_data/valid/"     + batchDirName;
-                    String outputDir = "./pig_data/query2_out/" + batchDirName;
+                String inputDir  = "./pig_data/valid/"     + batchDirName;
+                String outputDir = "./pig_data/query2_out/" + batchDirName;
 
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
 
-                    // ── KEY CHANGE ────────────────────────────────────────────
-                    // Original: ProcessBuilder subprocess for each batch.
-                    // New:      embedded PigServer (thread-local, reused across
-                    //           batches on the same thread).
-                    // ─────────────────────────────────────────────────────────
-                    PigScriptExecutor.executeQueryScript(SCRIPT_PATH, inputDir, outputDir, batchId);
+                List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
 
-                    List<String> lines = PigScriptExecutor.readOutputLines(outputDir);
-
-                    List<Document> docs = new ArrayList<>();
-                    for (String line : lines) {
-                        try {
-                            String[] parts = line.split("\t");
-                            if (parts.length >= 5 && !parts[1].isEmpty()) {
-                                Document doc = new Document();
-                                doc.append("_id",          parts[0]);
-                                doc.append("requestCount", Integer.parseInt(parts[1]));
-                                doc.append("totalBytes",   Long.parseLong(parts[2]));
-                                doc.append("hosts",        PigBagParser.parseBag(parts[3]));
-                                doc.append("batch_id",     Integer.parseInt(parts[4]));
-                                docs.add(doc);
-                            }
-                        } catch (Exception e) {
-                            System.err.println("Skipping malformed line: " + line);
+                List<Document> docs = new ArrayList<>();
+                for (String line : lines) {
+                    try {
+                        String[] parts = line.split("\t");
+                        if (parts.length >= 5 && !parts[1].isEmpty()) {
+                            Document doc = new Document();
+                            doc.append("_id",          parts[0]);
+                            doc.append("requestCount", Integer.parseInt(parts[1]));
+                            doc.append("totalBytes",   Long.parseLong(parts[2]));
+                            doc.append("hosts",        PigBagParser.parseBag(parts[3]));
+                            doc.append("batch_id",     Integer.parseInt(parts[4]));
+                            docs.add(doc);
                         }
+                    } catch (Exception e) {
+                        System.err.println("Skipping malformed line: " + line);
                     }
-
-                    PigScriptExecutor.deleteDirectory(new File(outputDir));
-                    return docs;
-
-                } finally {
-                    PigServerManager.close();
                 }
+
+                PigScriptExecutor.deleteDirectory(new File(outputDir));
+                return docs;
             }));
         }
 
@@ -110,6 +96,9 @@ public class Query2_TopResources {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        // Shut down the single worker thread's PigServer once, after all batches.
+        PigServerManager.close();
 
         // =========================
         // STEP 2: MERGE RESULTS
