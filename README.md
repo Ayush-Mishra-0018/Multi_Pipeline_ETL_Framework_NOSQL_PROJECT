@@ -17,8 +17,9 @@
 3. [Parsing Strategy and Batching Approach](#3-parsing-strategy-and-batching-approach)
 4. [Relational Reporting Database Schema](#4-relational-reporting-database-schema)
 5. [Query Outputs and Demonstrations](#5-query-outputs-and-demonstrations)
-6. [Runtime Module](#6-runtime-module)
-7. [Conclusion](#conclusion)
+6. [Pipeline Performance Comparison](#6-pipeline-performance-comparison)
+7. [Runtime Module](#7-runtime-module)
+8. [Conclusion](#8-conclusion)
 
 ---
 
@@ -27,63 +28,35 @@
 ```
 ./
 ├── README.md
-├── common
-│   ├── pom.xml
-│   └── src/main/java/com/example
-│       ├── config
-│       │   ├── AppProperties.java
-│       │   └── ConfigReader.java
-│       ├── model
-│       │   ├── BatchResult.java
-│       │   └── ParsedLog.java
-│       └── util
-│           ├── BatchProcessor.java
-│           ├── BatchReader.java
-│           └── LogParser.java
-├── data
-│   ├── NASA_access_log_Aug95
-│   └── NASA_access_log_Jul95
-├── mongo-pipeline
-│   ├── pom.xml
-│   └── src/main/java/com/example/mongo
-│       ├── queries
-│       │   ├── Query1_DailyTraffic_Global.java
-│       │   ├── Query2_TopResources.java
-│       │   └── Query3_HourlyErrorAnalysis.java
-│       ├── runner
-│       │   └── QueryRunner.java
-│       └── service
-│           ├── MongoConnection.java
-│           └── MongoInsertService.java
-├── postgres-loader
-│   ├── pom.xml
-│   └── src/main/java/com/example/postgres/service
-│       ├── PostgresInsertService.java
-│       ├── PostgresReaderService.java
-│       └── PostgresSchemaInitializer.java
-├── reporting
-│   ├── pom.xml
-│   └── src/main/java/com/example/reporting
-│       ├── MongoPipelineMain.java
-│       └── RunModule.java
+├── common/
+├── data/
+├── hive-pipeline/
+├── map-reduce/
+├── mongo-pipeline/
+├── Pig-pipeline/
+├── postgres-loader/
+├── reporting/
 └── pom.xml
 ```
 
 ### Module Responsibilities
 
-| Module | Package | Responsibility |
-|---|---|---|
-| `common` | `config`, `model`, `util` | Shared parsing, batching, and data model classes |
-| `mongo-pipeline` | `queries`, `runner`, `service` | MongoDB aggregation queries and insert service |
-| `postgres-loader` | `postgres/service` | PostgreSQL schema init, insert, and read services |
-| `reporting` | `reporting` | Entry point — orchestrates the full pipeline run |
-| `data` | — | Raw NASA HTTP server log files |
+| Module | Responsibility |
+|---|---|
+| `common` | Shared parsing, batching, and data model classes |
+| `mongo-pipeline` | MongoDB aggregation queries and insert service |
+| `hive-pipeline` | Apache Hive execution backend and ETL orchestrator |
+| `map-reduce` | Native Hadoop MapReduce backend |
+| `Pig-pipeline` | Apache Pig scripting backend |
+| `postgres-loader` | PostgreSQL schema init, insert, and read services |
+| `reporting` | Central orchestration module to run individual pipelines or all of them |
+| `data` | Raw NASA HTTP server log files |
 
 ---
 
 ## 1. Introduction
 
-This report presents the implementation status and architecture of the MongoDB-based ETL pipeline for web server log analysis. It highlights the current progress, system design, and workflow used to process and aggregate log data using MongoDB, along with storage of results in PostgreSQL.
+This report presents the implementation and architecture of a Multi-Pipeline NoSQL ETL framework for web server log analysis. It highlights the system design and workflow used to process and aggregate massive log data using four distinct big-data processing engines: **MongoDB**, **Apache Hive**, **Apache Pig**, and **Hadoop MapReduce**, with all final analytical results securely stored in PostgreSQL.
 
 ---
 
@@ -91,9 +64,9 @@ This report presents the implementation status and architecture of the MongoDB-b
 
 ### System Overview
 
-The system implements a MongoDB-based ETL pipeline for processing large-scale web server logs. It focuses on transforming raw log data into structured format, processing it in batches, and performing efficient aggregation using MongoDB.
+The system implements a multi-pipeline ETL framework for processing large-scale web server logs. It focuses on transforming raw log data into a structured format, processing it in localized batches, and performing efficient aggregation across distributed backends.
 
-The architecture is modular, separating parsing, batching, storage, and query execution. This design enables scalability and simplifies extension to other pipelines in future phases.
+The architecture is highly modular, explicitly separating the parsing, batching, storage, and query execution layers to permit identical logic to run across MongoDB, Hive, Pig, and MapReduce dynamically.
 
 ### End-to-End Data Flow
 
@@ -101,324 +74,130 @@ The data flows through the following stages:
 
 1. **Input Layer** — Raw NASA log files are read from disk.
 2. **Parsing Layer** — Logs are converted into structured records containing fields such as date, status code, and bytes.
-3. **Batching Layer** — Records are grouped into batches to enable scalable and parallel processing.
-4. **MongoDB Storage** — Each batch is stored in a separate MongoDB collection.
-5. **Processing Layer** — Aggregation queries are executed on each batch collection using MongoDB pipelines.
-6. **Global Aggregation** — Partial results from all batches are merged to produce final aggregated results.
+3. **Batching Layer** — Records are grouped into fixed-size batches to enable scalable and parallel processing.
+4. **Execution Backend** — The pipeline dynamically targets MongoDB, Hive, Pig, or MapReduce to execute the specific ETL workload.
+5. **Processing Layer** — Aggregation queries are executed locally on the backend.
+6. **Global Aggregation** — Partial results from all distributed batches are merged to produce final, globally consistent aggregated results.
 7. **Output Layer** — Final results are enriched with metadata and stored in PostgreSQL for reporting.
-
-### Pipeline Backend (MongoDB)
-
-The MongoDB pipeline serves as the primary execution backend in this phase. It uses aggregation pipelines to compute query results efficiently.
-
-Batch-level processing is executed in parallel using multi-threading, allowing multiple collections to be processed simultaneously. Aggregation results are then combined to produce a global output, ensuring correctness across all batches.
 
 ### Design Principles
 
 | Principle | Description |
 |---|---|
-| **Modularity** | Parsing, batching, and query execution are independent components |
-| **Scalability** | Batch-based processing and parallel execution handle large datasets |
-| **Extensibility** | Architecture can be extended to support additional pipelines |
-| **Consistency** | Aggregation logic ensures accurate results across all batches |
+| **Modularity** | Parsing, batching, and query execution are decoupled |
+| **Scalability** | Batch-based processing handles massive data without memory overload |
+| **Extensibility** | Pluggable architecture supporting distinct execution engines |
+| **Consistency** | Strict parsing parity ensures identical results regardless of pipeline |
 
 ---
 
 ## 3. Parsing Strategy and Batching Approach
 
-This section describes how raw NASA HTTP server log files are read, parsed into structured records, grouped into batches for processing, and how malformed entries are handled throughout the pipeline.
-
-The implementation is spread across four classes in the `common` module: `LogParser`, `BatchProcessor`, `BatchReader`, and `BatchResult`.
+This section describes how raw NASA HTTP server log files are read, parsed into structured records, grouped into batches, and how malformed entries are efficiently handled.
 
 ### 3.1 Log Format and Structure
 
-The input dataset consists of two raw NASA HTTP server access log files:
+The input dataset consists of raw NASA HTTP server access log files:
 - `NASA_access_log_Jul95`
 - `NASA_access_log_Aug95`
 
-Together they total approximately **373 MB** of uncompressed log data.
-
-Each line follows the **Combined Log Format (CLF)**, a standard format used by Apache and NCSA HTTP servers.
+Each line follows the **Combined Log Format (CLF)**.
 
 **Sample log entry:**
 ```
 199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] "GET /history/apollo/ HTTP/1.0" 200 6245
 ```
 
-**Log fields:**
-
-| Field | Example Value | Description |
-|---|---|---|
-| Host | `199.72.81.55` | Client hostname or IP address |
-| Ident | `-` | RFC 1413 identity (always `-`) |
-| Auth User | `-` | Authenticated username (always `-`) |
-| Timestamp | `01/Jul/1995:00:00:01 -0400` | Request date and time with timezone |
-| Request | `GET /history/apollo/ HTTP/1.0` | Full HTTP request line |
-| Status Code | `200` | HTTP response status code |
-| Bytes | `6245` | Response size in bytes (`-` if unknown) |
-
 ### 3.2 Parsing Strategy
 
-Parsing is handled entirely by the `LogParser` class (`common/src/main/java/com/example/util/LogParser.java`). The parser applies a single compiled regular expression to each raw log line and extracts all relevant fields in one pass.
-
-#### Regular Expression
-
-```
-^(\S+) \S+ \S+ \[(.*?)\] "(.*?)" (\d{3}) (\S+)$
-```
-
-**Capture groups:**
-
-| Group | Pattern | Field | Description |
-|---|---|---|---|
-| 1 | `(\S+)` | Host | Non-whitespace token — client IP or hostname |
-| 2 | `(.*?)` | Raw Timestamp | Content inside `[ ]` — full date-time string |
-| 3 | `(.*?)` | Request | Content inside `" "` — HTTP method, path, protocol |
-| 4 | `(\d{3})` | Status Code | Exactly 3 digits — HTTP response code |
-| 5 | `(\S+)` | Bytes | Non-whitespace — response size or `-` |
-
-#### Field Extraction and Transformation
-
-- **Timestamp parsing:** The raw timestamp is split on `:` to separate the date from the hour. The date is re-formatted to ISO-8601 (`yyyy-MM-dd`). The hour is extracted as an integer.
-- **Request line parsing:** The request string is split on whitespace into method, path, and protocol. Fewer than three tokens → record flagged as malformed.
-- **Bytes field:** `"-"` is stored as `0`; otherwise parsed as `long`.
-- **Batch ID injection:** Each `ParsedLog` record is stamped with its `batchId` for downstream filtering and aggregation.
-
-**`ParsedLog` model fields:**
-```java
-private String  host;
-private String  rawTimestamp;
-private String  date;        // ISO-8601 format: yyyy-MM-dd
-private int     hour;        // 0-23
-private String  method;      // GET, POST, HEAD, etc.
-private String  path;        // Requested resource path
-private String  protocol;    // HTTP/1.0 or HTTP/1.1
-private int     status;      // HTTP status code
-private long    bytes;       // Response size (0 if unknown)
-private boolean malformed;   // true if parsing failed
-private int     batchId;     // Batch this record belongs to
-```
+Parsing is universally handled to maintain 1:1 analytical parity. The system leverages Schema-on-Read, utilizing smart Regular Expressions (`regexp_extract`) to meticulously extract critical tokens while aggressively discarding trailing whitespaces and handling truncated requests (strict 3-part request tokenization).
 
 ### 3.3 Batching Approach
 
-Large log files are not loaded entirely into memory. They are streamed and consumed in fixed-size batches, keeping memory usage bounded and enabling parallel query execution.
+Large log files are never loaded entirely into memory. They are streamed and consumed in fixed-size batches, significantly bounded memory usage, preventing system crashes, and enforcing optimal distributed query execution across all the big data engines.
 
-#### BatchReader — Streaming Lines from Disk
-
-`BatchReader` wraps a `BufferedReader` opened with `ISO-8859-1` encoding (required for non-UTF-8 byte sequences in the NASA logs). It implements `AutoCloseable` for safe use in try-with-resources.
-
-```java
-public List<String> readNextBatch(int batchSize) throws IOException {
-    List<String> lines = new ArrayList<>(batchSize);
-    String line;
-    while (lines.size() < batchSize &&
-           (line = reader.readLine()) != null) {
-        lines.add(line);
-    }
-    return lines;
-}
-```
-
-#### BatchProcessor — Parsing a Batch
-
-```java
-public static BatchResult processBatch(
-        List<String> rawLines, int batchId) {
-
-    List<ParsedLog> parsedLogs = new ArrayList<>(rawLines.size());
-    int malformedCount = 0;
-
-    for (String line : rawLines) {
-        ParsedLog log = LogParser.parse(line, batchId);
-        if (log.isMalformed()) malformedCount++;
-        parsedLogs.add(log);
-    }
-
-    return BatchResult.builder()
-            .batchId(batchId)
-            .totalRecords(rawLines.size())
-            .malformedRecords(malformedCount)
-            .validRecords(rawLines.size() - malformedCount)
-            .parsedLogs(parsedLogs)
-            .build();
-}
-```
-
-#### Batch Size Configuration
-
-```properties
-batch.size=25000
-input.file.paths=./data/NASA_access_log_Jul95,./data/NASA_access_log_Aug95
-mongo.clear.before.run=true
-```
-
-With a batch size of 25,000 and ~3.46 million total records, the pipeline produces **139 batches** per full run. Each batch gets a monotonically incrementing `batchId` starting from 1.
-
-#### Multi-File Processing
-
-The pipeline iterates over all input file paths. For each file a fresh `BatchReader` is opened and batches are consumed until EOF. The `batchId` counter is **not** reset between files, ensuring globally unique identifiers across the entire run.
+When generating batches, each batch receives a globally unique, monotonically incrementing `batchId` (resulting in ~117 batches for the full dataset using a 10,000 block size).
 
 ### 3.4 Handling Malformed Records
 
-A record is classified as malformed if:
-
-- The raw line does not match the regex pattern (missing fields, unexpected delimiters, truncated lines).
-- The request field contains fewer than three whitespace-separated tokens.
-- Any numeric field (`status`, `bytes`, `hour`) throws a `NumberFormatException`.
-- Any other unexpected exception is raised inside `parse()`.
-
-Malformed records are **not discarded**. They are stored in `parsed_logs` with `malformed = true`. Only valid records are written to `filtered_logs` and the per-batch `filtered_logs_batch_N` collections used for aggregation.
-
-### 3.5 Pipeline Summary Output
-
-| Metric | Value |
-|---|---|
-| Total Records Processed | 3,461,613 |
-| Total Valid Records | 3,461,612 |
-| Total Malformed Records | 1 |
-| Total Batches | 139 |
-| Average Batch Size | 24,903.69 |
-| Total Execution Time (ms) | 40,487 |
+Malformed records (e.g., truncated text, bad HTTP protocols, invalid status codes) are aggressively trapped but not deleted. They are specifically filtered and safely stored in the metadata summaries to prevent them from corrupting the core analytics while remaining fully auditable.
 
 ---
 
 ## 4. Relational Reporting Database Schema
 
+All execution pipelines output their aggregated analytics into a centralized PostgreSQL instance.
+
 ### Query 1 Reporting Table — `public.query_1`
-
-Stores daily traffic summaries aggregated by log date and status code.
-
-| Column | Type | Purpose |
-|---|---|---|
-| id | SERIAL | Primary key |
-| log_date | DATE | Log date of requests |
-| status_code | INTEGER | HTTP response status code |
-| request_count | BIGINT | Total number of requests |
-| total_bytes | BIGINT | Total bytes transferred |
-| batch_id | TEXT | Contributing batch IDs |
-| run_id | TEXT | Unique execution identifier |
-| pipeline_name | TEXT | Backend used for execution |
-| executed_at | TIMESTAMP | Execution timestamp |
+Stores daily traffic summaries aggregated by log date and status code. Metrics include `request_count`, `total_bytes`, and the contributing `batch_id`.
 
 ### Query 2 Reporting Table — `public.query_2`
-
-Stores top requested resource analytics with execution metadata.
-
-| Column | Type | Purpose |
-|---|---|---|
-| id | SERIAL | Primary key |
-| resource_path | TEXT | Requested resource path |
-| request_count | INTEGER | Total number of requests |
-| total_bytes | BIGINT | Total bytes transferred |
-| distinct_hosts | INTEGER | Number of unique requesting hosts |
-| batch_id | TEXT | Contributing batch IDs |
-| run_id | TEXT | Unique execution identifier |
-| pipeline_name | TEXT | Backend used for execution |
-| executed_at | TIMESTAMP | Execution timestamp |
+Stores the top requested resource paths. Metrics include `request_count`, `total_bytes`, and `distinct_hosts`.
 
 ### Query 3 Reporting Table — `public.query_3`
+Stores hourly error analysis. Metrics include `error_request_count` (HTTP 400-599), `total_request_count`, `error_rate`, and `distinct_error_hosts`.
 
-Stores hourly error analysis including error counts, total requests, and computed error rates.
-
-| Column | Type | Purpose |
-|---|---|---|
-| log_date | TEXT | Log date of requests |
-| log_hour | INTEGER | Hour of the request |
-| error_request_count | INTEGER | Number of error requests (4xx/5xx) |
-| total_request_count | INTEGER | Total number of requests |
-| error_rate | DOUBLE PRECISION | Percentage of error requests |
-| distinct_error_hosts | INTEGER | Unique hosts causing errors |
-| batch_id | TEXT | Contributing batch IDs |
-| run_id | TEXT | Unique execution identifier |
-| pipeline_name | TEXT | Backend used for execution |
-| executed_at | TIMESTAMP | Execution timestamp |
-
-### Metadata Columns (Common Across All Queries)
-
-| Column | Description |
-|---|---|
-| `pipeline_name` | Identifies the execution backend (e.g., MongoDB) |
-| `run_id` | UUID generated once per query execution — groups all rows from the same run |
-| `batch_id` | Set of contributing batches, e.g. `1+2+3+4` |
-| `executed_at` | Timestamp of PostgreSQL insertion — useful for historical tracking |
+### Global Metadata Tables (`global_db`)
+- `run_metadata`: Stores execution runtimes, pipeline names, and timestamps for high-level performance tracking.
+- `batch_metadata`: Stores the exact granular chunking metrics, valid vs. malformed record counts, and average batch sizes.
 
 ---
 
 ## 5. Query Outputs and Demonstrations
 
-Results are directly inserted into PostgreSQL using a shared insertion service. All results are stored in a database named `mongodb` for pipeline identification.
+All pipelines run three mandatory SQL queries on the cleaned dataset.
 
 ### Query 1: Daily Traffic Summary
-
-Aggregates logs by **log date** and **status code**, computing total requests and total bytes transferred.
-
-**Implementation:**
-- Each batch is stored in a separate MongoDB collection.
-- Aggregation via MongoDB's `$group` operator per batch.
-- Partial results merged across all batches.
-- Multi-threaded batch processing for performance.
-- Results sorted by log date and status code.
-
-**Observations:**
-- Status code `200` dominates traffic, indicating mostly successful requests.
-- Status codes `304` and `404` show zero byte transfers, as expected for cached or failed responses.
-- Batch identifiers confirm multiple batches contribute to the final result.
+Aggregates logs by **log date** and **status code**, computing total requests and total bytes transferred. Status code `200` dominates the traffic, representing primarily successful requests.
 
 ### Query 2: Top Requested Resources
-
-Computes the **top 20 requested resource paths**, with total requests, total bytes, and distinct host counts.
-
-**Implementation:**
-- Per-batch aggregation grouped by `path` using `$group`.
-- Partial results merged in Java to compute global aggregates.
-- Global top 20 selected by request count ranking.
-- Output displayed in ascending order of request count.
-
-**Observations:**
-- Static resources (images, icons, logos) dominate due to repeated browser requests.
-- NASA logo and homepage assets appear among the most frequently requested entries.
-- High distinct host counts confirm popularity across many unique clients.
+Computes the **top 20 requested resource paths**, with total requests, total bytes, and distinct host counts. The analysis reveals static assets (logos, icons) naturally command the highest access frequencies across the highest unique client footprint.
 
 ### Query 3: Hourly Error Analysis
+Aggregates logs by **log date** and **log hour**, grouping strict HTTP failures (400–599) to compute the exact error count, error rates, and distinct failed hosts. The output isolates specific network spike intervals and server misconfigurations.
 
-Aggregates logs by **log date** and **log hour**, computing error counts (HTTP 400–599), total requests, error rate percentage, and distinct error hosts.
+---
 
-**Implementation:**
-- Per-batch aggregation grouped by `log_date` and `log_hour`.
-- Error requests identified by status codes 400–599.
-- Distinct error hosts collected using `$addToSet`.
-- Partial results merged across all batches.
-- Results sorted by log date and hour.
+## 6. Pipeline Performance Comparison
+
+To evaluate the performance of the implemented ETL framework, execution statistics were collected from all four pipelines (MongoDB, Hive, Pig, and MapReduce).
+
+| Pipeline | Record | Valid | Malformed | Batches | Execution Time (ms) |
+|---|---|---|---|---|---|
+| MongoDB | 3461613 | 3461612 | 1 | 35* | 136293 |
+| Hive | 3461613 | 3461612 | 1 | 35* | 243748 |
+| Pig | 3461613 | 3461612 | 1 | 35* | 145811 |
+| MapReduce | 3461613 | 3461612 | 1 | 35* | 38180 |
+
+*(Note: Batch configurations may vary based on `batch.size` settings, e.g., 35 batches vs 117 batches).*
 
 **Observations:**
-- Hours with higher error counts indicate peak failure periods.
-- Error rate highlights time intervals with disproportionate failure traffic.
-- Distinct error host counts reveal whether failures are widespread or isolated.
+- **Consistency**: All four pipelines processed exactly 3,461,613 records and isolated 1 malformed record, demonstrating flawless 1:1 parity in parsing and validation across completely heterogeneous architectures.
+- **Speed**: **MapReduce** achieved the fastest batch execution time (38,180 ms) due to raw distributed processing efficiencies. **MongoDB** was extremely fast in aggregation execution. **Pig** performed moderately with scripting overhead, and **Hive** required the highest runtime due to its complex SQL parsing, HDFS staging, and compilation overhead.
 
 ---
 
-## 6. Runtime Module
+## 7. Runtime Module
 
-The runtime module (`MongoPipelineMain`) orchestrates the full pipeline end-to-end:
+The framework features a final centralized orchestration reporting feature triggered via the interactive CLI menu (`Option 5 - Run All Pipelines`). 
 
-1. Reads configuration from `app.properties`.
-2. Optionally clears existing MongoDB collections.
-3. Iterates over input files, streaming batches via `BatchReader`.
-4. Processes each batch through `BatchProcessor` and inserts into MongoDB.
-5. Executes all three queries in parallel using a thread pool.
-6. Inserts enriched results into PostgreSQL.
-7. Prints and persists the final pipeline summary.
+The `FinalReportService` queries the PostgreSQL `global_db` to dynamically construct and print two beautifully formatted ASCII tables directly to the terminal:
+1. **Pipeline Execution Summary** (`run_metadata`): High-level system execution times and completion statuses.
+2. **Batch Processing Details** (`batch_metadata`): Granular statistics on valid records, malformed records, and batch distribution.
+
+This centralized view acts as the ultimate validation layer for the entire project.
 
 ---
 
-## Conclusion
+## 8. Conclusion
 
-The MongoDB pipeline successfully demonstrates:
+This project successfully engineered and implemented a robust Multi-Pipeline NoSQL ETL framework explicitly designed for large-scale Big Data analytics.
 
-- **Efficient log parsing** using a single-pass regex with field-level transformations.
-- **Scalable batching** with bounded memory usage and globally unique batch IDs across files.
-- **Parallel query execution** via multi-threaded aggregation over per-batch MongoDB collections.
-- **Correct global aggregation** by merging partial results from all batches.
-- **Persistent reporting** through direct PostgreSQL insertion with full execution metadata.
+The framework actively demonstrates:
+- Scalable batch-based processing.
+- Reusable shared parsing logic deployed uniformly.
+- Extensible multi-module Maven design.
+- Sophisticated malformed record containment.
+- Centralized reporting and benchmarking.
 
-The system processed **3,461,613 records** across **139 batches** in under **41 seconds**, with only **1 malformed record** across the entire NASA dataset.
+By completing exact parity across **MongoDB**, **Hive**, **Pig**, and **MapReduce**, this project vividly illustrates the exact performance trade-offs, architecture strengths, and unique design patterns required to succeed in modern distributed data ecosystems.
