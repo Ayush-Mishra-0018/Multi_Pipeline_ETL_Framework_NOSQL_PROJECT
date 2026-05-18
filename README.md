@@ -22,21 +22,224 @@
 8. [Conclusion](#8-conclusion)
 
 ---
-
 ## Project Structure
 
-```
-./
+```text
+.
+├── arch_diagram.tex
+├── common
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           ├── java
+│           │   └── com
+│           │       └── example
+│           │           ├── config
+│           │           │   ├── ConfigReader.java
+│           │           │   └── PropertyUpdater.java
+│           │           ├── model
+│           │           │   ├── BatchResult.java
+│           │           │   ├── BatchStatistics.java
+│           │           │   ├── MalformedRecord.java
+│           │           │   ├── ParsedLog.java
+│           │           │   └── PipelineExecutionResult.java
+│           │           └── util
+│           │               └── LogParser.java
+│           └── resources
+│               └── app.properties
+├── data
+│   ├── NASA_access_log_Aug95
+│   └── NASA_access_log_Jul95
+├── hive-pipeline
+│   ├── pom.xml
+│   ├── scripts
+│   │   ├── hive_query_1.hql
+│   │   ├── hive_query_2.hql
+│   │   ├── hive_query_3.hql
+│   │   └── hive_setup.hql
+│   └── src
+│       └── main
+│           └── java
+│               └── com
+│                   └── example
+│                       └── hive
+│                           ├── dataSetup
+│                           │   └── HiveDataSetupExecutor.java
+│                           ├── queries
+│                           ├── runner
+│                           │   └── HiveQueryRunner.java
+│                           ├── service
+│                           │   ├── HdfsUploader.java
+│                           │   ├── HiveProcessRunner.java
+│                           │   └── HiveScriptBuilder.java
+│                           └── util
+├── links.txt
+├── Main
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           └── java
+│               └── com
+│                   └── example
+│                       ├── input
+│                       │   └── UserInputHandler.java
+│                       ├── Main.java
+│                       ├── menu
+│                       │   └── ConsoleMenu.java
+│                       ├── runner
+│                       │   └── PipelineDispatcher.java
+│                       ├── service
+│                       │   └── FinalReportService.java
+│                       └── setup
+│                           └── ApplicationSetup.java
+├── map-reduce
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           └── java
+│               └── com
+│                   └── example
+│                       └── mapReduce
+│                           ├── dataSetup
+│                           │   └── MapReduceDataSetupExecutor.java
+│                           ├── jobs
+│                           │   └── batchProcessing
+│                           │       ├── BatchProcessingDriver.java
+│                           │       └── BatchProcessingMapper.java
+│                           ├── queries
+│                           │   ├── Query1_DailyTraffic_Global.java
+│                           │   ├── Query2_TopResources.java
+│                           │   └── Query3_HourlyErrorAnalysis.java
+│                           ├── runner
+│                           │   └── QueryRunner.java
+│                           ├── service
+│                           │   ├── HadoopClusterManager.java
+│                           │   ├── HdfsFileUploader.java
+│                           │   └── StatsReaderService.java
+│                           └── util
+├── mongo-pipeline
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           └── java
+│               └── com
+│                   └── example
+│                       ├── mongo
+│                       │   ├── dataSetup
+│                       │   │   └── MongoDataSetupExecutor.java
+│                       │   ├── queries
+│                       │   │   ├── Query1_DailyTraffic_Global.java
+│                       │   │   ├── Query2_TopResources.java
+│                       │   │   └── Query3_HourlyErrorAnalysis.java
+│                       │   ├── runner
+│                       │   │   └── QueryRunner.java
+│                       │   └── service
+│                       │       ├── MongoConnection.java
+│                       │       └── MongoInsertService.java
+│                       └── util
+│                           ├── BatchProcessor.java
+│                           └── BatchReader.java
+├── nosql-etl-project.iml
+├── NoSQL26_ET_project_statement.pdf
+├── phase1
+│   └── NoSQL_Phase1.pdf
+├── Pig-pipeline
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           ├── java
+│           │   └── com
+│           │       └── example
+│           │           └── pig
+│           │               ├── dataSetup
+│           │               │   └── PigDataSetupExecutor.java
+│           │               ├── queries
+│           │               │   ├── Query1_DailyTraffic_Global.java
+│           │               │   ├── Query2_TopResources.java
+│           │               │   └── Query3_HourlyErrorAnalysis.java
+│           │               ├── runner
+│           │               │   └── PigQueryRunner.java
+│           │               ├── service
+│           │               │   └── PigInsertService.java
+│           │               └── util
+│           │                   ├── BatchReader.java
+│           │                   ├── PigBagParser.java
+│           │                   ├── PigScriptExecutor.java
+│           │                   └── PigServerManager.java
+│           └── resources
+│               └── pig
+│                   ├── parse_and_clean.pig
+│                   ├── query1.pig
+│                   ├── query2.pig
+│                   └── query3.pig
+├── pig_data
+│   ├── malformed
+│   │   ├── batch_1
+│   │   │   ├── _SUCCESS
+│   │   │   └── part-m-00000
+│   │   ├── batch_2
+│   │   │   ├── _SUCCESS
+│   │   │   └── part-m-00000
+│   │   └── batch_3
+│   │       ├── _SUCCESS
+│   │       └── part-m-00000
+│   ├── raw
+│   │   ├── batch_1.txt
+│   │   ├── batch_2.txt
+│   │   ├── batch_3.txt
+│   │   └── batch_4.txt
+│   └── valid
+│       ├── batch_1
+│       │   ├── _SUCCESS
+│       │   └── part-m-00000
+│       ├── batch_2
+│       │   ├── _SUCCESS
+│       │   └── part-m-00000
+│       ├── batch_3
+│       │   ├── _SUCCESS
+│       │   └── part-m-00000
+│       └── batch_4
+├── pom.xml
+├── postgres-loader
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           ├── java
+│           │   └── com
+│           │       └── example
+│           │           └── postgres
+│           │               └── service
+│           │                   ├── PostgresInsertService.java
+│           │                   ├── PostgresReaderService.java
+│           │                   └── PostgresSchemaInitializer.java
+│           └── resources
+│               └── sql
+│                   ├── global_schema.sql
+│                   └── pipeline_schema.sql
+├── preamble_patch.tex
+├── Project_evaluation_guidelines_2026.pdf
 ├── README.md
-├── common/
-├── data/
-├── hive-pipeline/
-├── map-reduce/
-├── mongo-pipeline/
-├── Pig-pipeline/
-├── postgres-loader/
-├── reporting/
-└── pom.xml
+├── Report.pdf
+├── reporting
+│   ├── pom.xml
+│   └── src
+│       └── main
+│           └── java
+│               └── com
+│                   └── example
+│                       ├── hive
+│                       │   └── RunReportHive.java
+│                       ├── mapReduce
+│                       │   └── RunReportMapReduce.java
+│                       ├── mongo
+│                       │   ├── MongoReportService.java
+│                       │   └── RunReportMongo.java
+│                       ├── pig
+│                       │   └── RunReportPig.java
+│                       └── postgres
+│                           └── PostgresReportService.java
+├── run.sh
+└── staged_batches.txt
 ```
 
 ### Module Responsibilities
