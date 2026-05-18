@@ -80,9 +80,6 @@ public final class HiveProcessRunner {
         return execute(pb, "script:" + scriptPath);
     }
 
-    // ============================================================
-    // Execute inline HQL
-    // ============================================================
 
     public static List<String> runInline(
             String hql,
@@ -100,10 +97,6 @@ public final class HiveProcessRunner {
                 "inline:" + hql.substring(0, Math.min(hql.length(), 60))
         );
     }
-
-    // ============================================================
-    // Build hive command arguments
-    // ============================================================
 
     private static List<String> buildArgs(
             String[] hiveConfs,
@@ -131,24 +124,9 @@ public final class HiveProcessRunner {
         return args;
     }
 
-    // ============================================================
-    // Configure ProcessBuilder
-    // ============================================================
-
     private static void configure(ProcessBuilder pb) {
 
         Map<String, String> env = pb.environment();
-
-        /**
-         * IMPORTANT:
-         * ProcessBuilder already inherits the parent environment.
-         *
-         * We only pin the Hive runtime environment explicitly.
-         */
-
-        // ============================================================
-        // Force Hive subprocess onto Java 8
-        // ============================================================
 
         env.put("JAVA_HOME", JAVA8_HOME);
 
@@ -162,9 +140,6 @@ public final class HiveProcessRunner {
                 java8Bin + ":" + currentPath
         );
 
-        // ============================================================
-        // Pin Hadoop / Hive homes
-        // ============================================================
 
         env.put("HADOOP_HOME", HADOOP_HOME);
 
@@ -175,16 +150,7 @@ public final class HiveProcessRunner {
                 HIVE_HOME + "/conf"
         );
 
-        // ============================================================
-        // EXPLICIT HADOOP CLASSPATH
-        //
-        // IntelliJ/Maven launched ProcessBuilder environments do NOT
-        // inherit the same shell-expanded Hadoop/Hive runtime classpath
-        // as manual terminal sessions.
-        //
-        // Without these:
-        //   SessionHiveMetaStoreClient fails to initialize.
-        // ============================================================
+
 
         env.put(
                 "HADOOP_CLASSPATH",
@@ -196,31 +162,17 @@ public final class HiveProcessRunner {
                         HADOOP_HOME + "/share/hadoop/yarn/*"
         );
 
-        // ============================================================
-        // EXPLICIT HIVE CLASSPATH
-        //
-        // Ensures Derby/metastore jars are visible consistently
-        // inside Java-launched Hive subprocesses.
-        // ============================================================
 
         env.put(
                 "CLASSPATH",
                 HIVE_HOME + "/lib/*"
         );
 
-        // ============================================================
-        // IMPORTANT:
-        // Derby metastore_db path is relative to working directory.
-        // ============================================================
 
         pb.directory(HIVE_WORK_DIR);
 
         pb.redirectErrorStream(false);
     }
-
-    // ============================================================
-    // Debug environment snapshot
-    // ============================================================
 
     private static void debugEnv(Map<String, String> env) {
 
@@ -262,9 +214,6 @@ public final class HiveProcessRunner {
         );
     }
 
-    // ============================================================
-    // Probe helper
-    // ============================================================
 
     private static void runDebugProbe(
             Map<String, String> env,

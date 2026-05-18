@@ -10,31 +10,6 @@ import com.example.model.PipelineExecutionResult;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * HiveDataSetupExecutor
- *
- * Orchestrates the Hive ETL pipeline setup phase.
- * Mirrors MongoDataSetupExecutor in structure and flow.
- *
- * ──────────────────────────────────────────────────────────────────
- * JAVA responsibilities (ONLY):
- *   1. Read app.properties (ConfigReader)
- *   2. Upload each raw log file to HDFS  (HdfsUploader → ProcessBuilder)
- *   3. Execute hive_setup.hql            (HiveProcessRunner → hive -f)
- *        The HQL does ALL parsing via regexp_extract
- *        The HQL does ALL malformed detection
- *        The HQL does ALL field transformation and filtering
- *   4. Collect batch stats via HiveQL COUNT(*) queries
- *   5. Collect a SAMPLE of malformed lines from Hive for Postgres storage
- *   6. Measure runtime, build and return PipelineExecutionResult
- *
- * JAVA does NOT:
- *   - Parse any log line
- *   - Detect or decide what is malformed
- *   - Transform / compute any field (date, hour, bytes, etc.)
- *   - Perform any aggregation or filtering on log content
- * ──────────────────────────────────────────────────────────────────
- */
 public final class HiveDataSetupExecutor {
 
     // How many malformed records to pull from Hive for Postgres storage
@@ -93,10 +68,7 @@ public final class HiveDataSetupExecutor {
                         }
                     }
                     
-                    // --- THE FIX ---
-                    // At the end of each file, if we have a partial batch, 
-                    // we must increment the batch ID so the next file starts 
-                    // on a fresh batch, matching Mongo/Pig's behavior exactly.
+
                     if (lineCount > 0) {
                         currentBatchId++;
                         lineCount = 0;
@@ -115,9 +87,6 @@ public final class HiveDataSetupExecutor {
             System.out.println("[HiveDataSetup] Upload complete.");
 
 
-            // ======================================================
-            // STEP 3: Run monolithic hive_setup.hql script
-            // ======================================================
 
             System.out.println("\n[HiveDataSetup] Step 3: Executing hive_setup.hql...");
             HiveProcessRunner.runScript(
@@ -130,13 +99,6 @@ public final class HiveDataSetupExecutor {
                     "nasa_filtered_logs is ready."
             );
 
-
-            // ======================================================
-            // STEP 4: Collect stats from Hive (COUNT queries)
-            //
-            // Hive computes the counts; Java only reads a single
-            // integer from each TSV output line.
-            // ======================================================
 
             long totalRecords   = queryCount("nasa_raw_logs");
             long totalMalformed = queryCount("nasa_malformed_logs");
@@ -187,10 +149,6 @@ public final class HiveDataSetupExecutor {
                     continue;
                 }
             }
-
-            // ======================================================
-            // STEP 6: Compute timing and return result
-            // ======================================================
 
             long endTime   = System.currentTimeMillis();
             long totalTime = endTime - startTime;
@@ -254,14 +212,6 @@ public final class HiveDataSetupExecutor {
                 if (line.isBlank()) continue;
 
                 String trimmed = line.trim();
-
-                // ── Reject Hive/Hadoop info & log lines ──────────────
-                // These lines contain spaces, slashes, colons, or
-                // brackets that are never present in a bare integer.
-                // A valid COUNT(*) result is ONLY digits (e.g. "3457291").
-                // Hive timestamp lines like "2026-05-13 22:06:37,882 INFO …"
-                // start with digits but contain non-digit characters;
-                // the regex below rejects them before parseLong is called.
                 if (!trimmed.matches("\\d+")) continue;
 
                 try {
