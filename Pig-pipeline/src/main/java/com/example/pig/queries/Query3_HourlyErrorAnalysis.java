@@ -10,13 +10,7 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * Hourly error-rate analysis per (date, hour) across all valid batches.
- *
- * <h3>Execution model</h3>
- * Batches are processed <em>sequentially</em> on a single worker thread.
- * See {@link Query1_DailyTraffic_Global} for the full rationale.
- */
+
 public class Query3_HourlyErrorAnalysis {
 
     private static final String SCRIPT_PATH =
@@ -42,7 +36,7 @@ public class Query3_HourlyErrorAnalysis {
         batchCollections.sort(Comparator.comparingInt(
                 name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
 
-        // Sequential execution — see Query1_DailyTraffic_Global for rationale.
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         List<Future<List<Document>>> futures = new ArrayList<>();
@@ -50,9 +44,7 @@ public class Query3_HourlyErrorAnalysis {
         Map<String, Document>    finalMap     = new HashMap<>();
         Map<String, Set<Integer>> batchTracker = new HashMap<>();
 
-        // =========================
-        // STEP 1: PER-BATCH QUERY
-        // =========================
+        // per-batch query
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
@@ -101,9 +93,7 @@ public class Query3_HourlyErrorAnalysis {
         // Shut down the single worker thread's PigServer once, after all batches.
         PigServerManager.close();
 
-        // =========================
-        // STEP 2: MERGE RESULTS
-        // =========================
+        // merging results
         for (Future<List<Document>> future : futures) {
             try {
                 List<Document> partialResults = future.get();
@@ -142,16 +132,12 @@ public class Query3_HourlyErrorAnalysis {
             }
         }
 
-        // =========================
-        // STEP 3: SORT
-        // =========================
+
         List<Document> output = new ArrayList<>(finalMap.values());
         output.sort(Comparator.comparing((Document d) -> d.getString("log_date"))
                 .thenComparing(d -> d.getInteger("log_hour")));
 
-        // =========================
-        // STEP 4: BUILD ROWS
-        // =========================
+
         List<Map<String, Object>> rows = new ArrayList<>();
 
         for (Document doc : output) {
@@ -181,14 +167,10 @@ public class Query3_HourlyErrorAnalysis {
             rows.add(row);
         }
 
-        // =========================
-        // STEP 5: INSERT INTO POSTGRES
-        // =========================
+
         PostgresInsertService.Insert("pig", "query_3", rows);
 
-        // =========================
-        // STEP 6: PRINT OUTPUT
-        // =========================
+
         System.out.printf("%-12s | %-10s | %-20s | %-20s | %-12s | %-20s | %-10s%n",
                 "log_date", "log_hour", "error_request_count", "total_request_count",
                 "error_rate", "distinct_error_hosts", "batches");

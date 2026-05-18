@@ -9,23 +9,7 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * Daily traffic aggregation per (date, status_code) across all valid batches.
- *
- * <h3>Execution model</h3>
- * Batches are processed <em>sequentially</em> on a single worker thread via
- * {@link Executors#newSingleThreadExecutor()}.  This is required because
- * {@link org.apache.pig.PigServer} in LOCAL mode is not safe to use
- * concurrently within the same JVM — Hadoop's shared {@code Configuration}
- * state causes non-deterministic failures when multiple Pig jobs run in
- * parallel.  Sequential execution guarantees deterministic results on every
- * run.
- *
- * <p>Performance is still significantly better than the original
- * {@code ProcessBuilder} approach because the single worker thread creates its
- * {@link org.apache.pig.PigServer} <em>once</em> and reuses it for every
- * batch — the 10–30 s per-batch JVM startup cost is paid exactly once.
- */
+
 public class Query1_DailyTraffic_Global {
 
     private static final String SCRIPT_PATH =
@@ -51,9 +35,7 @@ public class Query1_DailyTraffic_Global {
         batchCollections.sort(Comparator.comparingInt(
                 name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
 
-        // Sequential execution: PigServer in LOCAL mode is not thread-safe.
-        // A single worker thread creates its PigServer once and reuses it for
-        // every batch — no per-batch JVM startup, no shared-state collisions.
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
 
         List<Future<List<Document>>> futures = new ArrayList<>();
@@ -61,14 +43,10 @@ public class Query1_DailyTraffic_Global {
         Map<String, Document>    finalMap     = new HashMap<>();
         Map<String, Set<Integer>> batchTracker = new HashMap<>();
 
-        // =========================
-        // STEP 1: PER-BATCH QUERY
-        // =========================
+        // per-batch query
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
-                // No try/finally PigServerManager.close() here — the PigServer
-                // is intentionally reused across all batches on this thread.
                 int batchId = Integer.parseInt(
                         batchDirName.substring(batchDirName.lastIndexOf("_") + 1));
 
@@ -110,14 +88,10 @@ public class Query1_DailyTraffic_Global {
             e.printStackTrace();
         }
 
-        // Shut down the single worker thread's PigServer now that all batches
-        // are done.  Called here (not inside each Callable) so the server is
-        // reused across all batches rather than recreated for every one.
+
         PigServerManager.close();
 
-        // =========================
-        // STEP 2: MERGE RESULTS
-        // =========================
+        // Merging the results
         for (Future<List<Document>> future : futures) {
             try {
                 List<Document> partialResults = future.get();
@@ -152,17 +126,13 @@ public class Query1_DailyTraffic_Global {
             }
         }
 
-        // =========================
-        // STEP 3: SORT
-        // =========================
+
         List<Document> output = new ArrayList<>(finalMap.values());
         output.sort(
                 Comparator.comparing((Document d) -> d.getString("log_date"))
                         .thenComparing(d -> d.getInteger("status_code")));
 
-        // =========================
-        // STEP 4: BUILD ROWS
-        // =========================
+        // Building the rows
         List<Map<String, Object>> rows = new ArrayList<>();
 
         for (Document doc : output) {
@@ -188,14 +158,10 @@ public class Query1_DailyTraffic_Global {
 
         System.out.println("Rows to insert: " + rows.size());
 
-        // =========================
-        // STEP 5: INSERT INTO POSTGRES
-        // =========================
+        // Postgres insertion
         PostgresInsertService.Insert("pig", "query_1", rows);
 
-        // =========================
-        // STEP 6: PRINT OUTPUT
-        // =========================
+
         System.out.printf("%-12s | %-12s | %-15s | %-15s | %-10s%n",
                 "log_date", "status_code", "request_count", "total_bytes", "batches");
         System.out.println("--------------------------------------------------------------------------------------------------------------");

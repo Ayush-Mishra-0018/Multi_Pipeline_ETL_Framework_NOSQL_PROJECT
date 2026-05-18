@@ -10,13 +10,7 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.*;
 
-/**
- * Top-20 most-requested resources across all valid batches.
- *
- * <h3>Execution model</h3>
- * Batches are processed <em>sequentially</em> on a single worker thread.
- * See {@link Query1_DailyTraffic_Global} for the full rationale.
- */
+
 public class Query2_TopResources {
 
     private static final String SCRIPT_PATH =
@@ -50,9 +44,7 @@ public class Query2_TopResources {
         Map<String, Document>    finalMap     = new HashMap<>();
         Map<String, Set<Integer>> batchTracker = new HashMap<>();
 
-        // =========================
-        // STEP 1: PER-BATCH QUERY
-        // =========================
+        // per-batch query
         for (String batchDirName : batchCollections) {
 
             futures.add(executor.submit(() -> {
@@ -100,9 +92,7 @@ public class Query2_TopResources {
         // Shut down the single worker thread's PigServer once, after all batches.
         PigServerManager.close();
 
-        // =========================
-        // STEP 2: MERGE RESULTS
-        // =========================
+        // merging the results
         for (Future<List<Document>> future : futures) {
             try {
                 List<Document> partialResults = future.get();
@@ -136,9 +126,7 @@ public class Query2_TopResources {
             }
         }
 
-        // =========================
-        // STEP 3: TOP 20
-        // =========================
+        // sampling top 20
         List<Document> output = new ArrayList<>(finalMap.values());
         output.sort(Comparator.comparing((Document d) -> d.getInteger("request_count"))
                 .reversed().thenComparing(d -> d.getString("resource_path")));
@@ -148,9 +136,7 @@ public class Query2_TopResources {
         output.sort(Comparator.comparing((Document d) -> d.getInteger("request_count"))
                 .thenComparing(d -> d.getString("resource_path")));
 
-        // =========================
-        // STEP 4: BUILD ROWS
-        // =========================
+        //  building rows
         List<Map<String, Object>> rows = new ArrayList<>();
 
         for (Document doc : output) {
@@ -172,14 +158,10 @@ public class Query2_TopResources {
             rows.add(row);
         }
 
-        // =========================
-        // STEP 5: INSERT INTO POSTGRES
-        // =========================
+        // postgres insertion
         PostgresInsertService.Insert("pig", "query_2", rows);
 
-        // =========================
-        // STEP 6: PRINT OUTPUT
-        // =========================
+
         System.out.printf("%-50s | %-14s | %-14s | %-15s | %-10s%n",
                 "resource_path", "request_count", "total_bytes", "distinct_hosts", "batches");
         System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
