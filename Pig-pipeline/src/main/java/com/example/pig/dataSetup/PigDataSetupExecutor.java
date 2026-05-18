@@ -20,25 +20,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Orchestrates the Pig parse-and-clean pipeline.
- *
- * <h3>What changed vs the original</h3>
- * <ul>
- *   <li>The private {@code executePigScript} method that spawned a {@code pig}
- *       CLI process via {@code ProcessBuilder} has been replaced by a call to
- *       {@link PigScriptExecutor#executeSetupScript}, which uses the embedded
- *       {@link org.apache.pig.PigServer} API.  This eliminates the per-batch
- *       JVM startup overhead.
- *   <li>A {@code finally} block calls {@link PigServerManager#close()} so the
- *       main-thread {@code PigServer} is cleanly shut down after all batches
- *       are processed.
- * </ul>
- *
- * <h3>What has NOT changed</h3>
- * All batch-reading, output-counting, malformed-record collection, Postgres
- * insertion, and result-building logic is identical to the original.
- */
+
 public final class PigDataSetupExecutor {
 
     private static final String PIG_SCRIPT =
@@ -91,13 +73,8 @@ public final class PigDataSetupExecutor {
                         String validOutput    = "./pig_data/valid/batch_"     + batchId;
                         String malformedOutput = "./pig_data/malformed/batch_" + batchId;
 
-                        // ── KEY CHANGE ────────────────────────────────────────────────────
-                        // Original: spawned  "pig -x local -param ... -f parse_and_clean.pig"
-                        //           via ProcessBuilder — one new JVM per batch.
-                        // New:      calls PigScriptExecutor.executeSetupScript(), which runs
-                        //           the identical .pig script through the embedded PigServer
-                        //           (Hadoop MapReduce local mode) inside this JVM.
-                        // ─────────────────────────────────────────────────────────────────
+
+                        // runs the pig script through the embedded PigServer (Hadoop MapReduce local mode)
                         PigScriptExecutor.executeSetupScript(
                                 PIG_SCRIPT, rawBatchFile,
                                 validOutput, malformedOutput, batchId);
