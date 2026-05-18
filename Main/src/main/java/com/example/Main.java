@@ -2,6 +2,7 @@ package com.example;
 
 import com.example.postgres.service.PostgresSchemaInitializer;
 import com.example.runner.PipelineDispatcher;
+import com.example.service.FinalReportService;
 import com.example.setup.ApplicationSetup;
 
 public class Main {
@@ -17,5 +18,9 @@ public class Main {
                 setup.getPipelineChoice(),
                 setup.getQueries()
         );
+
+        if (setup.getPipelineChoice() == 5) {
+            FinalReportService.generateFinalReport();
+        }
     }
 }
