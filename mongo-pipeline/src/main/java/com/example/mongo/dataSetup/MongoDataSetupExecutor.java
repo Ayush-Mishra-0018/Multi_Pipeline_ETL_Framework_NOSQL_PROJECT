@@ -47,6 +47,9 @@ public final class MongoDataSetupExecutor {
                                 "10000"
                         )
                 );
+        System.out.println("\n\n");
+        System.out.println(batchSize);
+        System.out.println("\n\n");
 
         int batchId = 1;
 

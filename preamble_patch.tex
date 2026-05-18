@@ -1,0 +1,36 @@
+%% ── PASTE THIS BLOCK into your preamble, replacing the two lines:
+%%    \usepackage[margin=1.5cm]{geometry}
+%%    \usepackage[T1]{fontenc}
+%%    \usepackage{tikz}
+%%    \usepackage{xcolor}
+%%    \usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc}
+%% (The document already has tikz and xcolor, so just ADD these lines) ──────────
+
+\usepackage{pdflscape}   % landscape page for the diagram
+\usepackage[T1]{fontenc}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc}
+
+\definecolor{cEntry} {HTML}{1E293B}
+\definecolor{cCommon}{HTML}{0F4C75}
+\definecolor{cMongo} {HTML}{116530}
+\definecolor{cHive}  {HTML}{7B2D00}
+\definecolor{cPig}   {HTML}{4A0072}
+\definecolor{cMR}    {HTML}{8B1A1A}
+\definecolor{cPG}    {HTML}{2D6A4F}
+\definecolor{cData}  {HTML}{3D2B1F}
+
+\tikzset{
+  base/.style={rectangle, rounded corners=4pt, draw, very thick,
+    text width=3.2cm, align=center, font=\small\bfseries,
+    inner sep=6pt, minimum height=1.1cm, fill=white},
+  entry/.style ={base, draw=cEntry,  fill=cEntry!15,  text=cEntry},
+  common/.style={base, draw=cCommon, fill=cCommon!10, text=cCommon},
+  mongo/.style ={base, draw=cMongo,  fill=cMongo!10,  text=cMongo},
+  hive/.style  ={base, draw=cHive,   fill=cHive!10,   text=cHive},
+  pig/.style   ={base, draw=cPig,    fill=cPig!10,    text=cPig},
+  mr/.style    ={base, draw=cMR,     fill=cMR!10,     text=cMR},
+  pg/.style    ={base, draw=cPG,     fill=cPG!10,     text=cPG},
+  data/.style  ={base, draw=cData,   fill=cData!10,   text=cData},
+  arr/.style   ={-{Stealth[length=6pt]}, thick},
+  darr/.style  ={-{Stealth[length=5pt]}, thick, dashed, gray},
+}
