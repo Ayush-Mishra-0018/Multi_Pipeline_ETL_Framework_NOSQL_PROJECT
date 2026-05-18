@@ -8,8 +8,19 @@ import java.util.List;
 
 public final class PropertyUpdater {
 
-    private static final String APP_PROPERTIES_PATH =
+    // =====================================
+    // SOURCE RESOURCE FILE
+    // =====================================
+
+    private static final String SOURCE_PATH =
             "common/src/main/resources/app.properties";
+
+    // =====================================
+    // RUNTIME CLASSPATH FILE
+    // =====================================
+
+    private static final String TARGET_PATH =
+            "common/target/classes/app.properties";
 
     private PropertyUpdater() {
     }
@@ -19,10 +30,39 @@ public final class PropertyUpdater {
             String value
     ) {
 
+        updateFile(
+                SOURCE_PATH,
+                key,
+                value
+        );
+
+        updateFile(
+                TARGET_PATH,
+                key,
+                value
+        );
+
+        System.out.println(
+                "\nUpdated app.properties:"
+        );
+
+        System.out.println(
+                key + "=" + value
+        );
+
+        ConfigReader.reload();
+    }
+
+    private static void updateFile(
+            String filePath,
+            String key,
+            String value
+    ) {
+
         try {
 
             Path path =
-                    Paths.get(APP_PROPERTIES_PATH);
+                    Paths.get(filePath);
 
             List<String> lines =
                     Files.readAllLines(path);
@@ -30,7 +70,8 @@ public final class PropertyUpdater {
             List<String> updatedLines =
                     new ArrayList<>();
 
-            boolean updated = false;
+            boolean updated =
+                    false;
 
             for (String line : lines) {
 
@@ -38,7 +79,7 @@ public final class PropertyUpdater {
                         line.trim();
 
                 // =====================================
-                // REPLACE EXISTING PROPERTY
+                // UPDATE EXISTING PROPERTY
                 // =====================================
 
                 if (trimmed.startsWith(key + "=")) {
@@ -71,19 +112,11 @@ public final class PropertyUpdater {
                     updatedLines
             );
 
-            System.out.println(
-                    "\nUpdated app.properties:"
-            );
-
-            System.out.println(
-                    key + "=" + value
-            );
-            ConfigReader.reload();
-
         } catch (Exception e) {
 
             throw new RuntimeException(
-                    "Failed to update app.properties",
+                    "Failed to update file: "
+                            + filePath,
                     e
             );
         }
