@@ -1,22 +1,5 @@
 -- =============================================================
 -- QUERY 1: Daily Traffic Summary
---
--- Groups nasa_filtered_logs by (log_date_raw, status) globally
--- across all batches.  Equivalent to Mongo Query1_DailyTraffic_Global
--- which groups by ($date, $status) and sums request_count + total_bytes.
---
--- nasa_filtered_logs column references:
---   log_date_raw STRING  — e.g. '01/Jul/1995'
---   status       INT     — HTTP status code
---   bytes        BIGINT  — bytes transferred (0 when bytes_str was '-')
---   batch_id     INT     — 1 or 2
---
--- Output TSV (5 columns) read by HiveQueryRunner.runQuery1():
---   col 0: log_date   (String  -> parseDateToSql -> java.sql.Date)
---   col 1: status_code (INT)
---   col 2: request_count (LONG)
---   col 3: total_bytes   (LONG)
---   col 4: batch_id      (String, e.g. '1', '2', '1+2')
 -- =============================================================
 
 SELECT
