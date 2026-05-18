@@ -128,8 +128,6 @@ public class RunReportMapReduce {
                     "\n================================="
             );
 
-            System.out.println("\n\nUpdated the running by fixing 2 and 3 query\n\n");
-
             long queryRuntime = QueryRunner.runQueries(queries);
 
             long totalRuntime = queryRuntime + stats.getTotalTime();

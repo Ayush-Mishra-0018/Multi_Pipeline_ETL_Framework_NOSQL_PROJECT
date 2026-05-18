@@ -29,28 +29,15 @@ public class Query3_HourlyErrorAnalysis {
                 "\n\n Hourly Error Analysis \n\n"
         );
 
-        /*
-            FINAL AGGREGATED DATA
-
-            key:
-                date_hour
-         */
-
+        // Key = date_hour
         Map<String, Map<String, Object>> finalMap =
                 new HashMap<>();
 
-        /*
-            TRACK BATCH IDS
-         */
 
         Map<String, Set<Integer>> batchTracker =
                 new HashMap<>();
 
         try {
-
-            // =====================================
-            // HADOOP CONFIGURATION
-            // =====================================
 
             Configuration conf =
                     new Configuration();
@@ -87,9 +74,6 @@ public class Query3_HourlyErrorAnalysis {
                     )
             );
 
-            // =====================================
-            // CREATE JOB
-            // =====================================
 
             conf.set(
 
@@ -99,18 +83,10 @@ public class Query3_HourlyErrorAnalysis {
 
             );
 
-// =====================================
-
-// CREATE JOB
-
-// =====================================
-
             Job job =
 
                     Job.getInstance(
-
                             conf,
-
                             "Query3 Hourly Error Analysis"
 
                     );
@@ -118,10 +94,6 @@ public class Query3_HourlyErrorAnalysis {
             job.setJarByClass(
                     Query3_HourlyErrorAnalysis.class
             );
-
-            // =====================================
-            // MAPPER + REDUCER
-            // =====================================
 
             job.setMapperClass(
                     Query3Mapper.class
@@ -131,9 +103,6 @@ public class Query3_HourlyErrorAnalysis {
                     Query3Reducer.class
             );
 
-            // =====================================
-            // OUTPUT TYPES
-            // =====================================
 
             job.setMapOutputKeyClass(
                     Text.class
@@ -151,9 +120,7 @@ public class Query3_HourlyErrorAnalysis {
                     Text.class
             );
 
-            // =====================================
-            // INPUT / OUTPUT
-            // =====================================
+
 
             String inputPath =
                     ConfigReader.get(
@@ -171,9 +138,6 @@ public class Query3_HourlyErrorAnalysis {
             FileSystem fs =
                     FileSystem.get(conf);
 
-            // =====================================
-            // DELETE OLD OUTPUT
-            // =====================================
 
             if (fs.exists(outputDir)) {
 
@@ -190,9 +154,6 @@ public class Query3_HourlyErrorAnalysis {
                     outputDir
             );
 
-            // =====================================
-            // RUN JOB
-            // =====================================
 
             boolean success =
                     job.waitForCompletion(true);
@@ -204,9 +165,6 @@ public class Query3_HourlyErrorAnalysis {
                 );
             }
 
-            // =====================================
-            // READ REDUCER OUTPUT
-            // =====================================
 
             RemoteIterator<LocatedFileStatus> files =
                     fs.listFiles(outputDir, false);
@@ -238,11 +196,6 @@ public class Query3_HourlyErrorAnalysis {
 
                 while ((line = br.readLine()) != null) {
 
-                    /*
-                        FORMAT:
-
-                        date,hour,errorCount,totalCount,distinctHosts,batches
-                     */
 
                     String[] parts =
                             line.split(",");
@@ -305,9 +258,6 @@ public class Query3_HourlyErrorAnalysis {
                             rowData
                     );
 
-                    // =====================================
-                    // TRACK BATCH IDS
-                    // =====================================
 
                     Set<Integer> batches =
                             new HashSet<>();
@@ -336,10 +286,6 @@ public class Query3_HourlyErrorAnalysis {
             throw new RuntimeException(e);
         }
 
-        // =====================================
-        // SORT OUTPUT
-        // =====================================
-
         List<Map<String, Object>> output =
                 new ArrayList<>(
                         finalMap.values()
@@ -354,10 +300,6 @@ public class Query3_HourlyErrorAnalysis {
                                 (Integer) d.get("log_hour")
                 )
         );
-
-        // =====================================
-        // BUILD FINAL ROWS
-        // =====================================
 
         List<Map<String, Object>> rows =
                 new ArrayList<>();
@@ -444,18 +386,10 @@ public class Query3_HourlyErrorAnalysis {
             rows.add(row);
         }
 
-        // =====================================
-        // DEBUG
-        // =====================================
-
         System.out.println(
                 "Rows to insert: "
                         + rows.size()
         );
-
-        // =====================================
-        // INSERT INTO POSTGRES
-        // =====================================
 
         PostgresInsertService.Insert(
                 "mapreduce",
@@ -463,9 +397,6 @@ public class Query3_HourlyErrorAnalysis {
                 rows
         );
 
-        // =====================================
-        // PRINT OUTPUT
-        // =====================================
 
         System.out.printf(
                 "%-12s | %-10s | %-20s | %-20s | %-12s | %-20s | %-10s%n",
@@ -497,10 +428,6 @@ public class Query3_HourlyErrorAnalysis {
         }
     }
 
-    // =====================================
-    // MAPPER
-    // =====================================
-
     public static class Query3Mapper
             extends Mapper<
             LongWritable,
@@ -524,12 +451,6 @@ public class Query3_HourlyErrorAnalysis {
                     return;
                 }
 
-                /*
-                    FILTERED FORMAT:
-
-                    host	rawTimestamp	date	hour	method	path	protocol	status	bytes
-                 */
-
                 String[] parts =
                         line.split("\\t");
 
@@ -542,10 +463,6 @@ public class Query3_HourlyErrorAnalysis {
 
                     return;
                 }
-
-                // =====================================
-                // GET BATCH ID
-                // =====================================
 
                 FileSplit split =
                         (FileSplit)
@@ -575,23 +492,12 @@ public class Query3_HourlyErrorAnalysis {
                 int status =
                         Integer.parseInt(parts[7]);
 
-                /*
-                    ERROR STATUS:
-                        400-599
-                 */
 
                 int isError =
                         (status >= 400 && status <= 599)
                                 ? 1
                                 : 0;
 
-                /*
-                    KEY:
-                        date_hour
-
-                    VALUE:
-                        error,total,hostIfError,batch
-                 */
 
                 String errorHost =
                         isError == 1
@@ -622,10 +528,6 @@ public class Query3_HourlyErrorAnalysis {
             }
         }
     }
-
-    // =====================================
-    // REDUCER
-    // =====================================
 
     public static class Query3Reducer
             extends Reducer<
@@ -674,10 +576,6 @@ public class Query3_HourlyErrorAnalysis {
                     );
                 }
 
-                // =====================================
-                // SORT BATCH IDS
-                // =====================================
-
                 List<Integer> sorted =
                         new ArrayList<>(batches);
 
@@ -693,12 +591,6 @@ public class Query3_HourlyErrorAnalysis {
 
                 String[] keyParts =
                         key.toString().split("_");
-
-                /*
-                    OUTPUT FORMAT:
-
-                    date,hour,errorCount,totalCount,distinctHosts,batches
-                 */
 
                 String output =
                         keyParts[0]
@@ -727,10 +619,6 @@ public class Query3_HourlyErrorAnalysis {
             }
         }
     }
-
-    // =====================================
-    // DATE CONVERTER
-    // =====================================
 
     private static String convertDate(
             String input
