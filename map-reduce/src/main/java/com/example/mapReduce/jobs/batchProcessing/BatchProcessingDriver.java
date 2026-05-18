@@ -180,10 +180,12 @@ public final class BatchProcessingDriver {
                         .findCounter(BatchProcessingMapper.LogCounters.TOTAL_MALFORMED)
                         .getValue();
 
-                long totalBatches =
-                        job.getTaskReports(
-                                org.apache.hadoop.mapreduce.TaskType.MAP
-                        ).length;
+                long totalBatches = counters
+                        .findCounter(
+                                BatchProcessingMapper.LogCounters.TOTAL_BATCHES
+                        )
+                        .getValue();
+
 
                 double avgBatchSize = totalBatches > 0
                         ? (double) totalRecords / totalBatches

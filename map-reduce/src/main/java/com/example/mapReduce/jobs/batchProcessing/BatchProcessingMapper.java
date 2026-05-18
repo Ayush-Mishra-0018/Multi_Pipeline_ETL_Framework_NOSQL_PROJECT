@@ -21,7 +21,8 @@ public class BatchProcessingMapper extends
     public enum LogCounters {
         TOTAL_VALID,
         TOTAL_MALFORMED,
-        TOTAL_RECORDS
+        TOTAL_RECORDS,
+        TOTAL_BATCHES
     }
 
     private MultipleOutputs<NullWritable, Text> multipleOutputs;
@@ -34,13 +35,15 @@ public class BatchProcessingMapper extends
         multipleOutputs =
                 new MultipleOutputs<>(context);
 
-        // UNIQUE MAPPER ID
-
         mapperId =
                 context
                         .getTaskAttemptID()
                         .getTaskID()
                         .toString();
+
+        context.getCounter(
+                LogCounters.TOTAL_BATCHES
+        ).increment(1);
 
         System.out.println(
                 "\nMapper started: " + mapperId
