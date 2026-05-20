@@ -1,3 +1,4 @@
+-- For each date and hour, number of requests, numbers of errors, total requests, and the error hosts
 raw = LOAD '$INPUT_DIR' USING PigStorage('\t') AS (host:chararray, rawTimestamp:chararray, formattedDate:chararray, hour:int, method:chararray, path:chararray, protocol:chararray, status:int, bytes:long, batchId:int);
 
 grp = GROUP raw BY (formattedDate, hour);

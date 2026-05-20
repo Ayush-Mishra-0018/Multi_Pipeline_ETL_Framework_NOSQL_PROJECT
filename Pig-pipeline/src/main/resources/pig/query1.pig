@@ -1,3 +1,4 @@
+-- For each day and HTTP status code, how many requests and bytes sent
 raw = LOAD '$INPUT_DIR' USING PigStorage('\t') AS (host:chararray, rawTimestamp:chararray, formattedDate:chararray, hour:int, method:chararray, path:chararray, protocol:chararray, status:int, bytes:long, batchId:int);
 
 grp = GROUP raw BY (formattedDate, status);
