@@ -28,7 +28,7 @@ public final class PigDataSetupExecutor {
 
     private PigDataSetupExecutor() {}
 
-    public static PipelineExecutionResult execute() {
+    public static PipelineExecutionResult execute(int input_batch_size) {
 
         long startTime = System.currentTimeMillis();
 
@@ -44,8 +44,11 @@ public final class PigDataSetupExecutor {
         String filePathsStr = ConfigReader.get("input.file.paths");
         String[] filePaths = filePathsStr.split(",");
 
-        int batchSize = Integer.parseInt(
-                ConfigReader.get("batch.size", "10000"));
+        int batchSize = input_batch_size;
+        if (input_batch_size <= 0) {
+            batchSize = Integer.parseInt(
+                    ConfigReader.get("batch.size", "10000"));
+        }
 
         int batchId = 1;
         long totalRecordsProcessed = 0;
@@ -182,6 +185,6 @@ public final class PigDataSetupExecutor {
     }
 
     public static void main(String[] args) {
-        execute();
+        execute(-1);
     }
 }

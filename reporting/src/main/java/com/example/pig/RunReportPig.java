@@ -15,7 +15,7 @@ public class RunReportPig {
     ) {
         try {
             System.out.println("\nRunning Pig Pipeline Data Setup...");
-            PipelineExecutionResult executionResult = PigDataSetupExecutor.execute();
+            PipelineExecutionResult executionResult = PigDataSetupExecutor.execute(-1);
 
             long pipelineRuntime = executionResult.getExecutionTime();
             System.out.println("Pig data setup completed in " + pipelineRuntime + " ms");
