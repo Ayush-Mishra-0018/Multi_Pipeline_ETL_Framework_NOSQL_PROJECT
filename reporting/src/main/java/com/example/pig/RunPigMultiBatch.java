@@ -41,10 +41,12 @@ class BatchExecResult {
 
 public class RunPigMultiBatch {
     public static void main(String[] args) {
-        List<Integer> batchSizes = List.of(10000, 20000, 25000, 50000, 75000, 100000, 125000);
+        List<Integer> batchSizes = List.of(10000, 20000, 25000, 50000, 75000, 100000, 125000,
+                                            175000, 250000, 500000, 1000000, 1500000);
         List<BatchExecResult> batchResults = new ArrayList<>();
 
         for (int batchSize : batchSizes) {
+            System.out.println("\n\n\nExecuting batch size " + batchSize);
             try {
                 PipelineExecutionResult executionResult = PigDataSetupExecutor.execute(batchSize);
                 System.out.println("Data setup for Pig pipeline with batch size " + batchSize +

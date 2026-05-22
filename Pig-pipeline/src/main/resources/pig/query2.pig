@@ -1,7 +1,7 @@
 -- Top 20 most requested resources with total request counts, total bytes sent, and unique hosts that made those requests
 raw = LOAD '$INPUT_DIR' USING PigStorage('\t') AS (host:chararray, rawTimestamp:chararray, formattedDate:chararray, hour:int, method:chararray, path:chararray, protocol:chararray, status:int, bytes:long, batchId:int);
 
--- valid_raw = FILTER raw BY path IS NOT NULL AND path != '' AND protocol IS NOT NULL AND protocol != '';
+valid_raw = FILTER raw BY path IS NOT NULL AND path != '' AND protocol IS NOT NULL AND protocol != '';
 
 grp = GROUP valid_raw BY path;
 res = FOREACH grp {
