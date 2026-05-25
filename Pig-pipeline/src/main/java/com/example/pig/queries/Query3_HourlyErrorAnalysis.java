@@ -37,7 +37,8 @@ public class Query3_HourlyErrorAnalysis {
                 name -> Integer.parseInt(name.substring(name.lastIndexOf('_') + 1))));
 
 
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+        int numThreads = Runtime.getRuntime().availableProcessors();
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 
         List<Future<List<Document>>> futures = new ArrayList<>();
 
@@ -83,21 +84,48 @@ public class Query3_HourlyErrorAnalysis {
             }));
         }
 
-        executor.shutdown();
-        try {
-            executor.awaitTermination(15, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        // Wait for all batch tasks to complete and gather results
+        List<List<Document>> resultsList = new ArrayList<>();
+        for (Future<List<Document>> future : futures) {
+            try {
+                resultsList.add(future.get());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
-        // Shut down the single worker thread's PigServer once, after all batches.
+        // Clean up thread-local PigServers in the pool
+        List<Future<?>> cleanupFutures = new ArrayList<>();
+        for (int i = 0; i < numThreads; i++) {
+            cleanupFutures.add(executor.submit(() -> {
+                PigServerManager.close();
+                return null;
+            }));
+        }
+        for (Future<?> f : cleanupFutures) {
+            try {
+                f.get(1, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        // Cleanly shut down the PigServer that was used by this (main) thread.
         PigServerManager.close();
 
         // merging results
-        for (Future<List<Document>> future : futures) {
+        for (List<Document> partialResults : resultsList) {
             try {
-                List<Document> partialResults = future.get();
-
                 for (Document doc : partialResults) {
 
                     Document     id      = (Document) doc.get("_id");

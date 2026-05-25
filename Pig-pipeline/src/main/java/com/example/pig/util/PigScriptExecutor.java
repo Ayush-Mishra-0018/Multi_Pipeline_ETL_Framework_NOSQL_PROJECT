@@ -21,16 +21,35 @@ public final class PigScriptExecutor {
             String scriptPath, String inputDir, String outputDir, int batchId)
             throws Exception {
 
-        PigServer pig = PigServerManager.get();
+        int maxRetries = 5;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                PigServer pig = PigServerManager.get();
 
-        Map<String, String> params = new HashMap<>();
-        params.put("INPUT_DIR", inputDir);
-        params.put("OUTPUT_DIR", outputDir);
-        params.put("BATCH_ID", String.valueOf(batchId));
+                Map<String, String> params = new HashMap<>();
+                params.put("INPUT_DIR", inputDir);
+                params.put("OUTPUT_DIR", outputDir);
+                params.put("BATCH_ID", String.valueOf(batchId));
 
-        // registerScript compiles + runs the script synchronously.
-        // PigServer translates it to a MapReduce job (local runner by default).
-        pig.registerScript(scriptPath, params);
+                // registerScript compiles + runs the script synchronously.
+                // PigServer translates it to a MapReduce job (local runner by default).
+                pig.registerScript(scriptPath, params);
+                return; // Success
+            } catch (Exception e) {
+                if (attempt == maxRetries) {
+                    throw e;
+                }
+                String errorMsg = e.toString();
+                if (errorMsg.contains("duplicate uid") || errorMsg.contains("PlanValidationException") || 
+                    errorMsg.contains("FrontendException") || errorMsg.contains("SchemaTupleFrontend")) {
+                    System.out.println("Concurrency conflict in Pig compiler for batch " + batchId + " (attempt " + attempt + "/" + maxRetries + "). Retrying...");
+                    PigServerManager.close();
+                    Thread.sleep(100 + (int)(Math.random() * 200));
+                } else {
+                    throw e;
+                }
+            }
+        }
     }
 
 
@@ -39,15 +58,34 @@ public final class PigScriptExecutor {
             String validOutput, String malformedOutput, int batchId)
             throws Exception {
 
-        PigServer pig = PigServerManager.get();
+        int maxRetries = 5;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                PigServer pig = PigServerManager.get();
 
-        Map<String, String> params = new HashMap<>();
-        params.put("INPUT_FILE", inputFile);
-        params.put("VALID_OUTPUT", validOutput);
-        params.put("MALFORMED_OUTPUT", malformedOutput);
-        params.put("BATCH_ID", String.valueOf(batchId));
+                Map<String, String> params = new HashMap<>();
+                params.put("INPUT_FILE", inputFile);
+                params.put("VALID_OUTPUT", validOutput);
+                params.put("MALFORMED_OUTPUT", malformedOutput);
+                params.put("BATCH_ID", String.valueOf(batchId));
 
-        pig.registerScript(scriptPath, params);
+                pig.registerScript(scriptPath, params);
+                return; // Success
+            } catch (Exception e) {
+                if (attempt == maxRetries) {
+                    throw e;
+                }
+                String errorMsg = e.toString();
+                if (errorMsg.contains("duplicate uid") || errorMsg.contains("PlanValidationException") || 
+                    errorMsg.contains("FrontendException") || errorMsg.contains("SchemaTupleFrontend")) {
+                    System.out.println("Concurrency conflict in Pig compiler for setup batch " + batchId + " (attempt " + attempt + "/" + maxRetries + "). Retrying...");
+                    PigServerManager.close();
+                    Thread.sleep(100 + (int)(Math.random() * 200));
+                } else {
+                    throw e;
+                }
+            }
+        }
     }
 
 
